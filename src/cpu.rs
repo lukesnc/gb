@@ -4,6 +4,7 @@ use std::{thread, time};
 
 const M_CYCLE: time::Duration = time::Duration::from_nanos(238 * 4);
 
+#[derive(Debug)]
 pub struct CPU {
     reg: Registers,
     ime: bool,
@@ -15,7 +16,7 @@ impl CPU {
     pub fn new() -> Self {
         CPU {
             reg: Registers::new(),
-            ime: false,
+            ime: true,
             ime_scheduled: false,
             halted: false,
         }
@@ -26,8 +27,16 @@ impl CPU {
         if self.halted {
             return;
         }
-        let cost = self.exec(memory);
-        thread::sleep(M_CYCLE * cost);
+
+        //    blarggs test - serial output
+        if memory[0xff02] == 0x81 {
+            let c = memory[0xff01];
+            dbg!(c);
+            memory[0xff02] = 0x0;
+        }
+
+        dbg!(&self);
+        self.exec(memory);
     }
 
     fn exec(&mut self, memory: &mut [u8; 0xFFFF]) -> u32 {
@@ -992,7 +1001,7 @@ impl CPU {
             // 0xDF => {}
             0xE0 => {
                 let n = self.read_byte(memory);
-                let addr = (0xFF << 8) | (n as u16);
+                let addr = 0xFF00 | n as u16;
                 memory[addr as usize] = self.reg.a;
                 3
             }
@@ -1598,8 +1607,9 @@ impl CPU {
 
     // Read/write ops
     fn read_byte(&mut self, memory: &[u8; 0xFFFF]) -> u8 {
+        let byte = memory[self.reg.pc as usize];
         self.reg.pc = self.reg.pc.wrapping_add(1);
-        memory[self.reg.pc as usize]
+        byte
     }
 
     fn read_word(&mut self, memory: &[u8; 0xFFFF]) -> u16 {
@@ -1616,10 +1626,10 @@ impl CPU {
     }
 
     fn pop_stack(&mut self, memory: &[u8; 0xFFFF]) -> u16 {
-        self.reg.sp += 1;
         let lsb = memory[self.reg.sp as usize];
         self.reg.sp += 1;
         let msb = memory[self.reg.sp as usize];
+        self.reg.sp += 1;
         ((msb as u16) << 8) | (lsb as u16)
     }
 

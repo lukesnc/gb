@@ -1,5 +1,5 @@
 use cpu::CPU;
-use memory::{init_ram, load_rom};
+use memory::load_rom;
 use std::env;
 
 mod cpu;
@@ -11,7 +11,6 @@ fn main() {
     let file_path = &args[1];
 
     let mut memory: [u8; 0xFFFF] = [0; 0xFFFF];
-    init_ram(&mut memory);
     load_rom(&mut memory, file_path);
 
     let mut cpu = CPU::new();
