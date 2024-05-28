@@ -1,20 +1,20 @@
 use crate::register::Flag::{C, H, N, Z};
 use crate::register::Registers;
-use std::{thread, time};
+use std::time::Duration;
 
-const M_CYCLE: time::Duration = time::Duration::from_nanos(238 * 4);
+const M_CYCLE: Duration = Duration::from_nanos(238 * 4);
 
 #[derive(Debug)]
-pub struct CPU {
+pub struct Cpu {
     reg: Registers,
     ime: bool,
     ime_scheduled: bool,
     halted: bool,
 }
 
-impl CPU {
+impl Cpu {
     pub fn new() -> Self {
-        CPU {
+        Cpu {
             reg: Registers::new(),
             ime: true,
             ime_scheduled: false,
@@ -28,20 +28,18 @@ impl CPU {
             return;
         }
 
-        //    blarggs test - serial output
+        // blarggs test - serial output
         if memory[0xff02] == 0x81 {
             let c = memory[0xff01];
             dbg!(c);
             memory[0xff02] = 0x0;
         }
 
-        dbg!(&self);
-        self.exec(memory);
+        let opcode = self.read_byte(memory);
+        self.exec(opcode, memory);
     }
 
-    fn exec(&mut self, memory: &mut [u8; 0xFFFF]) -> u32 {
-        let opcode = self.read_byte(memory);
-
+    fn exec(&mut self, opcode: u8, memory: &mut [u8; 0xFFFF]) -> u32 {
         println!("op: {:02X}", opcode);
         // println!("pc: {:02X}", self.reg.pc);
 
@@ -1124,8 +1122,8 @@ impl CPU {
         }
     }
 
-    fn exec_cb(&mut self, op: u8, memory: &mut [u8; 0xFFFF]) -> u32 {
-        match op {
+    fn exec_cb(&mut self, opcode: u8, memory: &mut [u8; 0xFFFF]) -> u32 {
+        match opcode {
             // 0x00 => {}
             // 0x01 => {}
             // 0x02 => {}
@@ -1601,7 +1599,7 @@ impl CPU {
             // 0xFD => {}
             // 0xFE => {}
             // 0xFF => {}
-            _ => panic!("Unimplemented opcode: 0xCB{:02X}", op),
+            _ => panic!("Unimplemented opcode: 0xCB{:02X}", opcode),
         }
     }
 
@@ -1761,10 +1759,10 @@ impl CPU {
 
 #[cfg(test)]
 mod test {
-    use super::{C, CPU, H, N, Z};
+    use super::{Cpu, C, H, N, Z};
     #[test]
     fn test_alu() {
-        let mut cpu = CPU::new();
+        let mut cpu = Cpu::new();
         cpu.alu_add(4);
         assert_eq!(cpu.reg.a, 5);
         cpu.reg.set_flag(C, true);

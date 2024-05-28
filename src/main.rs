@@ -1,4 +1,4 @@
-use cpu::CPU;
+use cpu::Cpu;
 use memory::load_rom;
 use std::env;
 
@@ -10,10 +10,10 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let file_path = &args[1];
 
-    let mut memory: [u8; 0xFFFF] = [0; 0xFFFF];
+    let mut memory = [0; 0xFFFF];
     load_rom(&mut memory, file_path);
 
-    let mut cpu = CPU::new();
+    let mut cpu = Cpu::new();
 
     loop {
         cpu.cycle(&mut memory);
