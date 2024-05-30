@@ -8,7 +8,7 @@ pub enum Flag {
 #[derive(Debug)]
 pub struct Reg {
     pub a: u8,
-    f: u8,
+    pub f: u8,
 
     pub b: u8,
     pub c: u8,

@@ -1,4 +1,4 @@
-use crate::memory::Mem;
+use crate::memory::{IFlag, Mem};
 use crate::register::Flag::*;
 use crate::register::Reg;
 
@@ -21,7 +21,7 @@ impl Cpu {
         Cpu {
             reg: Reg::new(),
             membus: Mem::new(),
-            ime: true,
+            ime: false,
             ime_scheduled: false,
             halted: false,
         }
@@ -32,29 +32,45 @@ impl Cpu {
         Cpu {
             reg: Reg::new(),
             membus: mem,
-            ime: true,
+            ime: false,
             ime_scheduled: false,
             halted: false,
         }
     }
 
+    fn handle_interrupt() {}
+
     // CPU cycle
     pub fn cycle(&mut self) {
-        //if self.halted {
-        //    return;
-        //}
-        //
-        //if self.ime_scheduled {
-        //    self.ime = true;
-        //} else if self.ime {
-        //    self.ime = false;
-        //    return;
-        //}
+        // blarggs test - serial output
+        if self.membus.read(0xff02) == 0x81 {
+            let c = self.membus.read(0xff01);
+            println!("{}", c);
+            self.membus.write(0xff02, 0x0);
+        }
+
+        // gameboy doctor output
+        println!(
+            "A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}",
+            self.reg.a,
+            self.reg.f,
+            self.reg.b,
+            self.reg.c,
+            self.reg.d,
+            self.reg.e,
+            self.reg.h,
+            self.reg.l,
+            self.reg.sp,
+            self.reg.pc,
+            self.membus.read(self.reg.pc),
+            self.membus.read(self.reg.pc+1),
+            self.membus.read(self.reg.pc+2),
+            self.membus.read(self.reg.pc+3)
+        );
 
         let opcode = self.read_byte();
-        print!("op: {:02X} ", opcode);
+        //println!("op: {:02X}", opcode);
         let m_cycles = self.exec(opcode);
-        println!("took {} m_cycles", m_cycles);
     }
 
     // Execute opcode
@@ -176,9 +192,9 @@ impl Cpu {
             }
             // 0x1F => {}
             0x20 => {
-                let e = self.read_byte();
+                let e = self.read_byte() as i8;
                 if !self.reg.flag(Z) {
-                    self.reg.pc = self.reg.pc.wrapping_add(e as i16 as u16);
+                    self.reg.pc = self.reg.pc.wrapping_add(e as u16);
                     3
                 } else {
                     2
@@ -248,8 +264,7 @@ impl Cpu {
             }
             0x2A => {
                 self.reg.a = self.membus.read(self.reg.hl());
-                let res = self.alu_inc(self.membus.read(self.reg.hl()));
-                self.membus.write(self.reg.hl(), res);
+                self.reg.set_hl(self.reg.hl().wrapping_add(1));
                 2
             }
             0x2B => {
@@ -1079,7 +1094,7 @@ impl Cpu {
             }
             0xF0 => {
                 let n = self.read_byte();
-                let addr = (0xFF << 8) | (n as u16);
+                let addr = 0xFF00 | (n as u16);
                 self.reg.a = self.membus.read(addr);
                 3
             }
@@ -1172,7 +1187,7 @@ impl Cpu {
             // 0x16 => {}
             // 0x17 => {}
             // 0x18 => {}
-            // 0x19 => {}
+            //0x19 => {}
             // 0x1A => {}
             // 0x1B => {}
             // 0x1C => {}
@@ -1228,7 +1243,10 @@ impl Cpu {
                 self.reg.a = self.alu_swap(self.reg.a);
                 2
             }
-            // 0x38 => {}
+            0x38 => {
+                self.reg.b = self.alu_srl(self.reg.b);
+                2
+            }
             // 0x39 => {}
             // 0x3A => {}
             // 0x3B => {}
@@ -1628,12 +1646,14 @@ impl Cpu {
     }
 
     // Read/write ops
+    /// Read byte at the PC
     fn read_byte(&mut self) -> u8 {
         let byte = self.membus.read(self.reg.pc);
         self.reg.pc = self.reg.pc.wrapping_add(1);
         byte
     }
 
+    /// Read word (2 bytes) at the PC
     fn read_word(&mut self) -> u16 {
         let lsb = self.read_byte();
         let msb = self.read_byte();
@@ -1734,7 +1754,7 @@ impl Cpu {
         let res = val.wrapping_add(1);
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, false);
-        self.reg.set_flag(H, (res & 0x10) == 0x10);
+        self.reg.set_flag(H, (val & 0x0F) + 1 > 0x0F);
         res
     }
 
@@ -1742,7 +1762,7 @@ impl Cpu {
         let res = val.wrapping_sub(1);
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, true);
-        self.reg.set_flag(H, (res & 0x10) == 0x10);
+        self.reg.set_flag(H, (val & 0x0F) == 0);
         res
     }
 
