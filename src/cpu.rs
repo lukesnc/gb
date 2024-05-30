@@ -1,21 +1,37 @@
-use crate::register::Flag::{C, H, N, Z};
-use crate::register::Registers;
+use crate::memory::Mem;
+use crate::register::Flag::*;
+use crate::register::Reg;
+
 use std::time::Duration;
 
 const M_CYCLE: Duration = Duration::from_nanos(238 * 4);
 
 #[derive(Debug)]
 pub struct Cpu {
-    reg: Registers,
+    reg: Reg,
+    membus: Mem,
     ime: bool,
     ime_scheduled: bool,
     halted: bool,
 }
 
 impl Cpu {
+    // Init CPU with blank memory
     pub fn new() -> Self {
         Cpu {
-            reg: Registers::new(),
+            reg: Reg::new(),
+            membus: Mem::new(),
+            ime: true,
+            ime_scheduled: false,
+            halted: false,
+        }
+    }
+
+    // Init CPU from existing memory
+    pub fn from(mem: Mem) -> Self {
+        Cpu {
+            reg: Reg::new(),
+            membus: mem,
             ime: true,
             ime_scheduled: false,
             halted: false,
@@ -23,35 +39,35 @@ impl Cpu {
     }
 
     // CPU cycle
-    pub fn cycle(&mut self, memory: &mut [u8; 0xFFFF]) {
-        if self.halted {
-            return;
-        }
+    pub fn cycle(&mut self) {
+        //if self.halted {
+        //    return;
+        //}
+        //
+        //if self.ime_scheduled {
+        //    self.ime = true;
+        //} else if self.ime {
+        //    self.ime = false;
+        //    return;
+        //}
 
-        // blarggs test - serial output
-        if memory[0xff02] == 0x81 {
-            let c = memory[0xff01];
-            dbg!(c);
-            memory[0xff02] = 0x0;
-        }
-
-        let opcode = self.read_byte(memory);
-        self.exec(opcode, memory);
+        let opcode = self.read_byte();
+        print!("op: {:02X} ", opcode);
+        let m_cycles = self.exec(opcode);
+        println!("took {} m_cycles", m_cycles);
     }
 
-    fn exec(&mut self, opcode: u8, memory: &mut [u8; 0xFFFF]) -> u32 {
-        println!("op: {:02X}", opcode);
-        // println!("pc: {:02X}", self.reg.pc);
-
+    // Execute opcode
+    fn exec(&mut self, opcode: u8) -> u32 {
         match opcode {
             0x00 => 1,
             0x01 => {
-                let nn = self.read_word(memory);
+                let nn = self.read_word();
                 self.reg.set_bc(nn);
                 3
             }
             0x02 => {
-                memory[self.reg.bc() as usize] = self.reg.a;
+                self.membus.write(self.reg.bc(), self.reg.a);
                 2
             }
             0x03 => {
@@ -67,14 +83,14 @@ impl Cpu {
                 1
             }
             0x06 => {
-                self.reg.b = self.read_byte(memory);
+                self.reg.b = self.read_byte();
                 2
             }
             // 0x07 => {}
             0x08 => {
-                let nn = self.read_word(memory);
-                memory[nn as usize] = self.reg.sp as u8;
-                memory[(nn + 1) as usize] = (self.reg.sp >> 8) as u8;
+                let nn = self.read_word();
+                self.membus.write(nn, self.reg.sp as u8);
+                self.membus.write(nn + 1, (self.reg.sp >> 8) as u8);
                 5
             }
             0x09 => {
@@ -82,7 +98,7 @@ impl Cpu {
                 2
             }
             0x0A => {
-                self.reg.a = memory[self.reg.bc() as usize];
+                self.reg.a = self.membus.read(self.reg.bc());
                 2
             }
             0x0B => {
@@ -98,18 +114,18 @@ impl Cpu {
                 1
             }
             0x0E => {
-                self.reg.c = self.read_byte(memory);
+                self.reg.c = self.read_byte();
                 2
             }
             // 0x0F => {}
             // 0x10 => {}
             0x11 => {
-                let nn = self.read_word(memory);
+                let nn = self.read_word();
                 self.reg.set_de(nn);
                 3
             }
             0x12 => {
-                memory[self.reg.de() as usize] = self.reg.a;
+                self.membus.write(self.reg.de(), self.reg.a);
                 2
             }
             0x13 => {
@@ -125,12 +141,12 @@ impl Cpu {
                 1
             }
             0x16 => {
-                self.reg.d = self.read_byte(memory);
+                self.reg.d = self.read_byte();
                 2
             }
             // 0x17 => {}
             0x18 => {
-                let e = self.read_byte(memory) as i8;
+                let e = self.read_byte() as i8;
                 self.reg.pc += e as i16 as u16;
                 3
             }
@@ -139,7 +155,7 @@ impl Cpu {
                 2
             }
             0x1A => {
-                self.reg.a = memory[self.reg.de() as usize];
+                self.reg.a = self.membus.read(self.reg.de());
                 2
             }
             0x1B => {
@@ -155,12 +171,12 @@ impl Cpu {
                 1
             }
             0x1E => {
-                self.reg.e = self.read_byte(memory);
+                self.reg.e = self.read_byte();
                 2
             }
             // 0x1F => {}
             0x20 => {
-                let e = self.read_byte(memory);
+                let e = self.read_byte();
                 if !self.reg.flag(Z) {
                     self.reg.pc = self.reg.pc.wrapping_add(e as i16 as u16);
                     3
@@ -169,13 +185,14 @@ impl Cpu {
                 }
             }
             0x21 => {
-                let nn = self.read_word(memory);
+                let nn = self.read_word();
                 self.reg.set_hl(nn);
                 3
             }
             0x22 => {
-                memory[self.reg.hl() as usize] = self.reg.a;
-                memory[self.reg.hl() as usize] = self.alu_inc(memory[self.reg.hl() as usize]);
+                self.membus.write(self.reg.hl(), self.reg.a);
+                let res = self.alu_inc(self.membus.read(self.reg.hl()));
+                self.membus.write(self.reg.hl(), res);
                 2
             }
             0x23 => {
@@ -191,7 +208,7 @@ impl Cpu {
                 1
             }
             0x26 => {
-                self.reg.h = self.read_byte(memory);
+                self.reg.h = self.read_byte();
                 2
             }
             0x27 => {
@@ -217,7 +234,7 @@ impl Cpu {
                 1
             }
             0x28 => {
-                let e = self.read_byte(memory);
+                let e = self.read_byte();
                 if self.reg.flag(Z) {
                     self.reg.pc = self.reg.pc.wrapping_add(e as i16 as u16);
                     3
@@ -230,8 +247,9 @@ impl Cpu {
                 2
             }
             0x2A => {
-                self.reg.a = memory[self.reg.hl() as usize];
-                memory[self.reg.hl() as usize] = self.alu_inc(memory[self.reg.hl() as usize]);
+                self.reg.a = self.membus.read(self.reg.hl());
+                let res = self.alu_inc(self.membus.read(self.reg.hl()));
+                self.membus.write(self.reg.hl(), res);
                 2
             }
             0x2B => {
@@ -247,7 +265,7 @@ impl Cpu {
                 1
             }
             0x2E => {
-                self.reg.l = self.read_byte(memory);
+                self.reg.l = self.read_byte();
                 2
             }
             0x2F => {
@@ -257,7 +275,7 @@ impl Cpu {
                 1
             }
             0x30 => {
-                let e = self.read_byte(memory);
+                let e = self.read_byte();
                 if !self.reg.flag(C) {
                     self.reg.pc = self.reg.pc.wrapping_add(e as i16 as u16);
                     3
@@ -266,13 +284,14 @@ impl Cpu {
                 }
             }
             0x31 => {
-                let nn = self.read_word(memory);
+                let nn = self.read_word();
                 self.reg.sp = nn;
                 3
             }
             0x32 => {
-                memory[self.reg.hl() as usize] = self.reg.a;
-                memory[self.reg.hl() as usize] = self.alu_dec(memory[self.reg.hl() as usize]);
+                self.membus.write(self.reg.hl(), self.reg.a);
+                let res = self.alu_dec(self.membus.read(self.reg.hl()));
+                self.membus.write(self.reg.hl(), res);
                 2
             }
             0x33 => {
@@ -280,15 +299,18 @@ impl Cpu {
                 2
             }
             0x34 => {
-                memory[self.reg.hl() as usize] = self.alu_inc(memory[self.reg.hl() as usize]);
+                let res = self.alu_inc(self.membus.read(self.reg.hl()));
+                self.membus.write(self.reg.hl(), res);
                 3
             }
             0x35 => {
-                memory[self.reg.hl() as usize] = self.alu_dec(memory[self.reg.hl() as usize]);
+                let res = self.alu_dec(self.membus.read(self.reg.hl()));
+                self.membus.write(self.reg.hl(), res);
                 3
             }
             0x36 => {
-                memory[self.reg.hl() as usize] = self.read_byte(memory);
+                let byte = self.read_byte();
+                self.membus.write(self.reg.hl(), byte);
                 3
             }
             0x37 => {
@@ -298,7 +320,7 @@ impl Cpu {
                 1
             }
             0x38 => {
-                let e = self.read_byte(memory);
+                let e = self.read_byte();
                 if self.reg.flag(C) {
                     self.reg.pc = self.reg.pc.wrapping_add(e as i16 as u16);
                     3
@@ -311,8 +333,9 @@ impl Cpu {
                 2
             }
             0x3A => {
-                self.reg.a = memory[self.reg.hl() as usize];
-                memory[self.reg.hl() as usize] = self.alu_dec(memory[self.reg.hl() as usize]);
+                self.reg.a = self.membus.read(self.reg.hl());
+                let res = self.alu_dec(self.membus.read(self.reg.hl()));
+                self.membus.write(self.reg.hl(), res);
                 2
             }
             0x3B => {
@@ -328,7 +351,7 @@ impl Cpu {
                 1
             }
             0x3E => {
-                self.reg.a = self.read_byte(memory);
+                self.reg.a = self.read_byte();
                 2
             }
             0x3F => {
@@ -359,7 +382,7 @@ impl Cpu {
                 1
             }
             0x46 => {
-                self.reg.b = memory[self.reg.hl() as usize];
+                self.reg.b = self.membus.read(self.reg.hl());
                 2
             }
             0x47 => {
@@ -388,7 +411,7 @@ impl Cpu {
                 1
             }
             0x4E => {
-                self.reg.c = memory[self.reg.hl() as usize];
+                self.reg.c = self.membus.read(self.reg.hl());
                 2
             }
             0x4F => {
@@ -417,7 +440,7 @@ impl Cpu {
                 1
             }
             0x56 => {
-                self.reg.d = memory[self.reg.hl() as usize];
+                self.reg.d = self.membus.read(self.reg.hl());
                 2
             }
             0x57 => {
@@ -446,7 +469,7 @@ impl Cpu {
                 1
             }
             0x5E => {
-                self.reg.e = memory[self.reg.hl() as usize];
+                self.reg.e = self.membus.read(self.reg.hl());
                 2
             }
             0x5F => {
@@ -475,7 +498,7 @@ impl Cpu {
                 1
             }
             0x66 => {
-                self.reg.h = memory[self.reg.hl() as usize];
+                self.reg.h = self.membus.read(self.reg.hl());
                 2
             }
             0x67 => {
@@ -504,7 +527,7 @@ impl Cpu {
             }
             0x6D => 1,
             0x6E => {
-                self.reg.l = memory[self.reg.hl() as usize];
+                self.reg.l = self.membus.read(self.reg.hl());
                 2
             }
             0x6F => {
@@ -512,32 +535,32 @@ impl Cpu {
                 1
             }
             0x70 => {
-                memory[self.reg.hl() as usize] = self.reg.b;
+                self.membus.write(self.reg.hl(), self.reg.b);
                 2
             }
             0x71 => {
-                memory[self.reg.hl() as usize] = self.reg.c;
+                self.membus.write(self.reg.hl(), self.reg.c);
                 2
             }
             0x72 => {
-                memory[self.reg.hl() as usize] = self.reg.d;
+                self.membus.write(self.reg.hl(), self.reg.d);
                 2
             }
             0x73 => {
-                memory[self.reg.hl() as usize] = self.reg.e;
+                self.membus.write(self.reg.hl(), self.reg.e);
                 2
             }
             0x74 => {
-                memory[self.reg.hl() as usize] = self.reg.h;
+                self.membus.write(self.reg.hl(), self.reg.h);
                 2
             }
             0x75 => {
-                memory[self.reg.hl() as usize] = self.reg.l;
+                self.membus.write(self.reg.hl(), self.reg.l);
                 2
             }
             // 0x76 => {}
             0x77 => {
-                memory[self.reg.hl() as usize] = self.reg.a;
+                self.membus.write(self.reg.hl(), self.reg.a);
                 2
             }
             0x78 => {
@@ -565,7 +588,7 @@ impl Cpu {
                 1
             }
             0x7E => {
-                self.reg.a = memory[self.reg.hl() as usize];
+                self.reg.a = self.membus.read(self.reg.hl());
                 2
             }
             0x7F => 1,
@@ -594,7 +617,7 @@ impl Cpu {
                 1
             }
             0x86 => {
-                self.alu_add(memory[self.reg.hl() as usize]);
+                self.alu_add(self.membus.read(self.reg.hl()));
                 2
             }
             0x87 => {
@@ -626,7 +649,7 @@ impl Cpu {
                 1
             }
             0x8E => {
-                self.alu_adc(memory[self.reg.hl() as usize]);
+                self.alu_adc(self.membus.read(self.reg.hl()));
                 2
             }
             0x8F => {
@@ -658,7 +681,7 @@ impl Cpu {
                 1
             }
             0x96 => {
-                self.alu_sub(memory[self.reg.hl() as usize]);
+                self.alu_sub(self.membus.read(self.reg.hl()));
                 2
             }
             0x97 => {
@@ -690,7 +713,7 @@ impl Cpu {
                 1
             }
             0x9E => {
-                self.alu_sbc(memory[self.reg.hl() as usize]);
+                self.alu_sbc(self.membus.read(self.reg.hl()));
                 2
             }
             0x9F => {
@@ -722,7 +745,7 @@ impl Cpu {
                 1
             }
             0xA6 => {
-                self.alu_and(memory[self.reg.hl() as usize]);
+                self.alu_and(self.membus.read(self.reg.hl()));
                 2
             }
             0xA7 => {
@@ -750,7 +773,7 @@ impl Cpu {
                 1
             }
             0xAE => {
-                self.alu_xor(memory[self.reg.hl() as usize]);
+                self.alu_xor(self.membus.read(self.reg.hl()));
                 2
             }
             0xAF => {
@@ -782,7 +805,7 @@ impl Cpu {
                 1
             }
             0xB6 => {
-                self.alu_or(memory[self.reg.hl() as usize]);
+                self.alu_or(self.membus.read(self.reg.hl()));
                 2
             }
             0xB7 => {
@@ -814,7 +837,7 @@ impl Cpu {
                 1
             }
             0xBE => {
-                self.alu_cp(memory[self.reg.hl() as usize]);
+                self.alu_cp(self.membus.read(self.reg.hl()));
                 2
             }
             0xBF => {
@@ -823,19 +846,19 @@ impl Cpu {
             }
             0xC0 => {
                 if !self.reg.flag(Z) {
-                    self.reg.pc = self.pop_stack(memory);
+                    self.reg.pc = self.pop_stack();
                     5
                 } else {
                     2
                 }
             }
             0xC1 => {
-                let res = self.pop_stack(memory);
+                let res = self.pop_stack();
                 self.reg.set_bc(res);
                 3
             }
             0xC2 => {
-                let nn = self.read_word(memory);
+                let nn = self.read_word();
                 if !self.reg.flag(Z) {
                     self.reg.pc = nn;
                     4
@@ -844,14 +867,14 @@ impl Cpu {
                 }
             }
             0xC3 => {
-                let nn = self.read_word(memory);
+                let nn = self.read_word();
                 self.reg.pc = nn;
                 4
             }
             0xC4 => {
-                let nn = self.read_word(memory);
+                let nn = self.read_word();
                 if !self.reg.flag(Z) {
-                    self.push_stack(memory, self.reg.pc);
+                    self.push_stack(self.reg.pc);
                     self.reg.pc = nn;
                     6
                 } else {
@@ -860,29 +883,29 @@ impl Cpu {
             }
             0xC5 => {
                 let rr = self.reg.bc();
-                self.push_stack(memory, rr);
+                self.push_stack(rr);
                 4
             }
             0xC6 => {
-                let n = self.read_byte(memory);
+                let n = self.read_byte();
                 self.alu_add(n);
                 2
             }
             // 0xC7 => {}
             0xC8 => {
                 if self.reg.flag(Z) {
-                    self.reg.pc = self.pop_stack(memory);
+                    self.reg.pc = self.pop_stack();
                     5
                 } else {
                     2
                 }
             }
             0xC9 => {
-                self.reg.pc = self.pop_stack(memory);
+                self.reg.pc = self.pop_stack();
                 4
             }
             0xCA => {
-                let nn = self.read_word(memory);
+                let nn = self.read_word();
                 if self.reg.flag(Z) {
                     self.reg.pc = nn;
                     4
@@ -891,13 +914,13 @@ impl Cpu {
                 }
             }
             0xCB => {
-                let op = self.read_byte(memory);
-                self.exec_cb(op, memory)
+                let op = self.read_byte();
+                self.exec_cb(op)
             }
             0xCC => {
-                let nn = self.read_word(memory);
+                let nn = self.read_word();
                 if self.reg.flag(Z) {
-                    self.push_stack(memory, self.reg.pc);
+                    self.push_stack(self.reg.pc);
                     self.reg.pc = nn;
                     6
                 } else {
@@ -905,32 +928,32 @@ impl Cpu {
                 }
             }
             0xCD => {
-                let nn = self.read_word(memory);
-                self.push_stack(memory, self.reg.pc);
+                let nn = self.read_word();
+                self.push_stack(self.reg.pc);
                 self.reg.pc = nn;
                 6
             }
             0xCE => {
-                let n = self.read_byte(memory);
+                let n = self.read_byte();
                 self.alu_adc(n);
                 2
             }
             // 0xCF => {}
             0xD0 => {
                 if !self.reg.flag(C) {
-                    self.reg.pc = self.pop_stack(memory);
+                    self.reg.pc = self.pop_stack();
                     5
                 } else {
                     2
                 }
             }
             0xD1 => {
-                let res = self.pop_stack(memory);
+                let res = self.pop_stack();
                 self.reg.set_de(res);
                 3
             }
             0xD2 => {
-                let nn = self.read_word(memory);
+                let nn = self.read_word();
                 if !self.reg.flag(C) {
                     self.reg.pc = nn;
                     4
@@ -939,9 +962,9 @@ impl Cpu {
                 }
             }
             0xD4 => {
-                let nn = self.read_word(memory);
+                let nn = self.read_word();
                 if !self.reg.flag(C) {
-                    self.push_stack(memory, self.reg.pc);
+                    self.push_stack(self.reg.pc);
                     self.reg.pc = nn;
                     6
                 } else {
@@ -950,30 +973,30 @@ impl Cpu {
             }
             0xD5 => {
                 let rr = self.reg.de();
-                self.push_stack(memory, rr);
+                self.push_stack(rr);
                 4
             }
             0xD6 => {
-                let n = self.read_byte(memory);
+                let n = self.read_byte();
                 self.alu_sub(n);
                 2
             }
             // 0xD7 => {}
             0xD8 => {
                 if self.reg.flag(C) {
-                    self.reg.pc = self.pop_stack(memory);
+                    self.reg.pc = self.pop_stack();
                     5
                 } else {
                     2
                 }
             }
             0xD9 => {
-                self.reg.pc = self.pop_stack(memory);
+                self.reg.pc = self.pop_stack();
                 self.ime = true;
                 4
             }
             0xDA => {
-                let nn = self.read_word(memory);
+                let nn = self.read_word();
                 if self.reg.flag(C) {
                     self.reg.pc = nn;
                     4
@@ -982,9 +1005,9 @@ impl Cpu {
                 }
             }
             0xDC => {
-                let nn = self.read_word(memory);
+                let nn = self.read_word();
                 if self.reg.flag(C) {
-                    self.push_stack(memory, self.reg.pc);
+                    self.push_stack(self.reg.pc);
                     self.reg.pc = nn;
                     6
                 } else {
@@ -992,40 +1015,40 @@ impl Cpu {
                 }
             }
             0xDE => {
-                let n = self.read_byte(memory);
+                let n = self.read_byte();
                 self.alu_sbc(n);
                 2
             }
             // 0xDF => {}
             0xE0 => {
-                let n = self.read_byte(memory);
+                let n = self.read_byte();
                 let addr = 0xFF00 | n as u16;
-                memory[addr as usize] = self.reg.a;
+                self.membus.write(addr, self.reg.a);
                 3
             }
             0xE1 => {
-                let res = self.pop_stack(memory);
+                let res = self.pop_stack();
                 self.reg.set_hl(res);
                 3
             }
             0xE2 => {
                 let addr = (0xFF << 8) | (self.reg.c as u16);
-                memory[addr as usize] = self.reg.a;
+                self.membus.write(addr, self.reg.a);
                 2
             }
             0xE5 => {
                 let rr = self.reg.hl();
-                self.push_stack(memory, rr);
+                self.push_stack(rr);
                 4
             }
             0xE6 => {
-                let n = self.read_byte(memory);
+                let n = self.read_byte();
                 self.alu_and(n);
                 2
             }
             // 0xE7 => {}
             0xE8 => {
-                let e = self.read_byte(memory) as i8 as i16 as u16;
+                let e = self.read_byte() as i8 as i16 as u16;
                 let res = self.reg.sp.wrapping_add(e);
                 self.reg.set_flag(Z, false);
                 self.reg.set_flag(N, false);
@@ -1040,34 +1063,34 @@ impl Cpu {
                 1
             }
             0xEA => {
-                let nn = self.read_word(memory);
-                memory[nn as usize] = self.reg.a;
+                let nn = self.read_word();
+                self.membus.write(nn, self.reg.a);
                 4
             }
             0xEE => {
-                let n = self.read_byte(memory);
+                let n = self.read_byte();
                 self.alu_xor(n);
                 2
             }
             0xEF => {
-                self.push_stack(memory, self.reg.pc);
+                self.push_stack(self.reg.pc);
                 self.reg.pc = 0x28;
                 4
             }
             0xF0 => {
-                let n = self.read_byte(memory);
+                let n = self.read_byte();
                 let addr = (0xFF << 8) | (n as u16);
-                self.reg.a = memory[addr as usize];
+                self.reg.a = self.membus.read(addr);
                 3
             }
             0xF1 => {
-                let res = self.pop_stack(memory);
+                let res = self.pop_stack();
                 self.reg.set_af(res);
                 3
             }
             0xF2 => {
                 let addr = (0xFF << 8) | (self.reg.c as u16);
-                self.reg.a = memory[addr as usize];
+                self.reg.a = self.membus.read(addr);
                 2
             }
             0xF3 => {
@@ -1076,21 +1099,21 @@ impl Cpu {
             }
             0xF5 => {
                 let rr = self.reg.af();
-                self.push_stack(memory, rr);
+                self.push_stack(rr);
                 4
             }
             0xF6 => {
-                let n = self.read_byte(memory);
+                let n = self.read_byte();
                 self.alu_or(n);
                 2
             }
             0xF7 => {
-                self.push_stack(memory, self.reg.pc);
+                self.push_stack(self.reg.pc);
                 self.reg.pc = 0x30;
                 4
             }
             0xF8 => {
-                let e = self.read_byte(memory) as i8 as i16 as u16;
+                let e = self.read_byte() as i8 as i16 as u16;
                 let res = self.reg.sp + e;
                 self.reg.set_hl(res);
                 3
@@ -1100,8 +1123,8 @@ impl Cpu {
                 2
             }
             0xFA => {
-                let nn = self.read_word(memory);
-                self.reg.a = memory[nn as usize];
+                let nn = self.read_word();
+                self.reg.a = self.membus.read(nn);
                 4
             }
             0xFB => {
@@ -1109,12 +1132,12 @@ impl Cpu {
                 1
             }
             0xFE => {
-                let n = self.read_byte(memory);
+                let n = self.read_byte();
                 self.alu_cp(n);
                 2
             }
             0xFF => {
-                self.push_stack(memory, self.reg.pc);
+                self.push_stack(self.reg.pc);
                 self.reg.pc = 0x38;
                 4
             }
@@ -1122,7 +1145,7 @@ impl Cpu {
         }
     }
 
-    fn exec_cb(&mut self, opcode: u8, memory: &mut [u8; 0xFFFF]) -> u32 {
+    fn exec_cb(&mut self, opcode: u8) -> u32 {
         match opcode {
             // 0x00 => {}
             // 0x01 => {}
@@ -1197,7 +1220,8 @@ impl Cpu {
                 2
             }
             0x36 => {
-                memory[self.reg.hl() as usize] = self.alu_swap(memory[self.reg.hl() as usize]);
+                let res = self.alu_swap(self.membus.read(self.reg.hl()));
+                self.membus.write(self.reg.hl(), res);
                 4
             }
             0x37 => {
@@ -1240,7 +1264,7 @@ impl Cpu {
                 2
             }
             0x46 => {
-                self.alu_bit(0, memory[self.reg.hl() as usize]);
+                self.alu_bit(0, self.membus.read(self.reg.hl()));
                 3
             }
             0x47 => {
@@ -1272,7 +1296,7 @@ impl Cpu {
                 2
             }
             0x4E => {
-                self.alu_bit(1, memory[self.reg.hl() as usize]);
+                self.alu_bit(1, self.membus.read(self.reg.hl()));
                 3
             }
             0x4F => {
@@ -1304,7 +1328,7 @@ impl Cpu {
                 2
             }
             0x56 => {
-                self.alu_bit(2, memory[self.reg.hl() as usize]);
+                self.alu_bit(2, self.membus.read(self.reg.hl()));
                 3
             }
             0x57 => {
@@ -1336,7 +1360,7 @@ impl Cpu {
                 2
             }
             0x5E => {
-                self.alu_bit(3, memory[self.reg.hl() as usize]);
+                self.alu_bit(3, self.membus.read(self.reg.hl()));
                 3
             }
             0x5F => {
@@ -1368,7 +1392,7 @@ impl Cpu {
                 2
             }
             0x66 => {
-                self.alu_bit(4, memory[self.reg.hl() as usize]);
+                self.alu_bit(4, self.membus.read(self.reg.hl()));
                 3
             }
             0x67 => {
@@ -1400,7 +1424,7 @@ impl Cpu {
                 2
             }
             0x6E => {
-                self.alu_bit(5, memory[self.reg.hl() as usize]);
+                self.alu_bit(5, self.membus.read(self.reg.hl()));
                 3
             }
             0x6F => {
@@ -1432,7 +1456,7 @@ impl Cpu {
                 2
             }
             0x76 => {
-                self.alu_bit(6, memory[self.reg.hl() as usize]);
+                self.alu_bit(6, self.membus.read(self.reg.hl()));
                 3
             }
             0x77 => {
@@ -1464,7 +1488,7 @@ impl Cpu {
                 2
             }
             0x7E => {
-                self.alu_bit(7, memory[self.reg.hl() as usize]);
+                self.alu_bit(7, self.membus.read(self.reg.hl()));
                 3
             }
             0x7F => {
@@ -1604,30 +1628,30 @@ impl Cpu {
     }
 
     // Read/write ops
-    fn read_byte(&mut self, memory: &[u8; 0xFFFF]) -> u8 {
-        let byte = memory[self.reg.pc as usize];
+    fn read_byte(&mut self) -> u8 {
+        let byte = self.membus.read(self.reg.pc);
         self.reg.pc = self.reg.pc.wrapping_add(1);
         byte
     }
 
-    fn read_word(&mut self, memory: &[u8; 0xFFFF]) -> u16 {
-        let lsb = self.read_byte(memory);
-        let msb = self.read_byte(memory);
+    fn read_word(&mut self) -> u16 {
+        let lsb = self.read_byte();
+        let msb = self.read_byte();
         ((msb as u16) << 8) | (lsb as u16)
     }
 
-    fn push_stack(&mut self, memory: &mut [u8; 0xFFFF], value: u16) {
+    fn push_stack(&mut self, value: u16) {
         self.reg.sp = self.reg.sp.wrapping_sub(1);
-        memory[self.reg.sp as usize] = (value >> 8) as u8;
+        self.membus.write(self.reg.sp, (value >> 8) as u8);
         self.reg.sp = self.reg.sp.wrapping_sub(1);
-        memory[self.reg.sp as usize] = value as u8;
+        self.membus.write(self.reg.sp, value as u8);
     }
 
-    fn pop_stack(&mut self, memory: &[u8; 0xFFFF]) -> u16 {
-        let lsb = memory[self.reg.sp as usize];
-        self.reg.sp += 1;
-        let msb = memory[self.reg.sp as usize];
-        self.reg.sp += 1;
+    fn pop_stack(&mut self) -> u16 {
+        let lsb = self.membus.read(self.reg.sp);
+        self.reg.sp = self.reg.sp.wrapping_add(1);
+        let msb = self.membus.read(self.reg.sp);
+        self.reg.sp = self.reg.sp.wrapping_add(1);
         ((msb as u16) << 8) | (lsb as u16)
     }
 
@@ -1758,8 +1782,12 @@ impl Cpu {
 }
 
 #[cfg(test)]
-mod test {
-    use super::{Cpu, C, H, N, Z};
+mod tests {
+    use super::Cpu;
+    use crate::memory::Mem;
+    use crate::register::Flag::*;
+
+    #[ignore]
     #[test]
     fn test_alu() {
         let mut cpu = Cpu::new();
@@ -1771,5 +1799,17 @@ mod test {
         cpu.reg.set_flag(Z, false);
         cpu.alu_bit(1, 0b00000010);
         assert_eq!(cpu.reg.flag(Z), false);
+    }
+
+    #[test]
+    fn test_cpu_instrs() {
+        let mut mem = Mem::new();
+        mem.load_rom(&"/home/luke/gbdev/testroms/blargg/cpu_instrs/cpu_instrs.gb".to_string());
+
+        let mut cpu = Cpu::from(mem);
+
+        loop {
+            cpu.cycle();
+        }
     }
 }

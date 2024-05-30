@@ -6,7 +6,7 @@ pub enum Flag {
 }
 
 #[derive(Debug)]
-pub struct Registers {
+pub struct Reg {
     pub a: u8,
     f: u8,
 
@@ -23,17 +23,17 @@ pub struct Registers {
     pub sp: u16,
 }
 
-impl Registers {
+impl Reg {
     pub fn new() -> Self {
-        Registers {
-            a: 0x11,
-            f: 0x80,
+        Reg {
+            a: 0x01,
+            f: 0xB0,
             b: 0x00,
-            c: 0x00,
-            d: 0xFF,
-            e: 0x56,
-            h: 0x00,
-            l: 0x0D,
+            c: 0x13,
+            d: 0x00,
+            e: 0xD8,
+            h: 0x01,
+            l: 0x4D,
             pc: 0x0100,
             sp: 0xFFFE,
         }
