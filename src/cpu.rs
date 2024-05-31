@@ -16,17 +16,6 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    // Init CPU with blank memory
-    pub fn new() -> Self {
-        Cpu {
-            reg: Reg::new(),
-            membus: Mem::new(),
-            ime: false,
-            ime_scheduled: false,
-            halted: false,
-        }
-    }
-
     // Init CPU from existing memory
     pub fn from(mem: Mem) -> Self {
         Cpu {
@@ -1187,7 +1176,7 @@ impl Cpu {
             // 0x16 => {}
             // 0x17 => {}
             // 0x18 => {}
-            //0x19 => {}
+            // 0x19 => {}
             // 0x1A => {}
             // 0x1B => {}
             // 0x1C => {}
