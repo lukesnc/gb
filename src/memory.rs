@@ -35,7 +35,7 @@ impl Mem {
     pub fn read(&self, addr: u16) -> u8 {
         match addr {
             0xFF0F => self.iflag,
-            0xFF40 => 0x90, // Hardcode LCD
+            0xFF44 => 0x90, // Hardcode LCD
             0xFFFF => self.ie,
             _ => self.ram[addr as usize],
         }

@@ -16,7 +16,7 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    // Init CPU from existing memory
+    /// Init CPU from existing memory
     pub fn from(mem: Mem) -> Self {
         Cpu {
             reg: Reg::new(),
@@ -196,8 +196,7 @@ impl Cpu {
             }
             0x22 => {
                 self.membus.write(self.reg.hl(), self.reg.a);
-                let res = self.alu_inc(self.membus.read(self.reg.hl()));
-                self.membus.write(self.reg.hl(), res);
+                self.reg.set_hl(self.reg.hl().wrapping_add(1));
                 2
             }
             0x23 => {
@@ -294,8 +293,7 @@ impl Cpu {
             }
             0x32 => {
                 self.membus.write(self.reg.hl(), self.reg.a);
-                let res = self.alu_dec(self.membus.read(self.reg.hl()));
-                self.membus.write(self.reg.hl(), res);
+                self.reg.set_hl(self.reg.hl().wrapping_sub(1));
                 2
             }
             0x33 => {
@@ -1666,32 +1664,34 @@ impl Cpu {
 
     // 8-bit ALU ops
     fn alu_add(&mut self, val: u8) {
-        let res = self.reg.a.wrapping_add(val);
+        let a = self.reg.a;
+        let res = a.wrapping_add(val);
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, false);
-        self.reg.set_flag(H, (res & 0x10) == 0x10);
-        self.reg
-            .set_flag(C, (self.reg.a as u16) + (val as u16) > 0xFF);
+        self.reg.set_flag(H, (a & 0xF) + (val & 0xF) > 0xF);
+        self.reg.set_flag(C, (a as u16) + (val as u16) > 0xFF);
         self.reg.a = res;
     }
 
     fn alu_adc(&mut self, val: u8) {
         let c = if self.reg.flag(C) { 1 } else { 0 };
-        let res = self.reg.a.wrapping_add(c).wrapping_add(val);
+        let a = self.reg.a;
+        let res = a.wrapping_add(c).wrapping_add(val);
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, false);
-        self.reg.set_flag(H, (res & 0x10) == 0x10);
+        self.reg.set_flag(H, (a & 0xF) + (val & 0xF) + c > 0xF);
         self.reg
-            .set_flag(C, (self.reg.a as u16) + (val as u16) + (c as u16) > 0xFF);
+            .set_flag(C, (a as u16) + (val as u16) + (c as u16) > 0xFF);
         self.reg.a = res;
     }
 
     fn alu_sub(&mut self, val: u8) {
-        let res = self.reg.a.wrapping_sub(val);
+        let a = self.reg.a;
+        let res = a.wrapping_sub(val);
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, true);
-        self.reg.set_flag(H, (res & 0x10) == 0x10);
-        self.reg.set_flag(C, (self.reg.a as u16) < (val as u16));
+        self.reg.set_flag(H, (a & 0x0F) < (val & 0x0F));
+        self.reg.set_flag(C, (a as u16) < (val as u16));
         self.reg.a = res;
     }
 
