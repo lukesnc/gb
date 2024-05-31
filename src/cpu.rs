@@ -32,11 +32,11 @@ impl Cpu {
     // CPU cycle
     pub fn cycle(&mut self) {
         // blarggs test - serial output
-        if self.membus.read(0xff02) == 0x81 {
-            let c = self.membus.read(0xff01);
-            println!("{}", c);
-            self.membus.write(0xff02, 0x0);
-        }
+        //if self.membus.read(0xff02) == 0x81 {
+        //    let c = self.membus.read(0xff01);
+        //    println!("{}", c);
+        //    self.membus.write(0xff02, 0x0);
+        //}
 
         // gameboy doctor output
         println!(
@@ -179,7 +179,13 @@ impl Cpu {
                 self.reg.e = self.read_byte();
                 2
             }
-            // 0x1F => {}
+            0x1F => {
+                self.reg.a = self.alu_rr(self.reg.a);
+                self.reg.set_flag(Z, false);
+                self.reg.set_flag(N, false);
+                self.reg.set_flag(H, false);
+                1
+            }
             0x20 => {
                 let e = self.read_byte() as i8;
                 if !self.reg.flag(Z) {
@@ -278,11 +284,12 @@ impl Cpu {
                 1
             }
             0x30 => {
-                let e = self.read_byte();
                 if !self.reg.flag(C) {
+                    let e = self.read_byte() as i8;
                     self.reg.pc = self.reg.pc.wrapping_add(e as i16 as u16);
                     3
                 } else {
+                    self.reg.pc = self.reg.pc.wrapping_add(1);
                     2
                 }
             }
@@ -1174,13 +1181,31 @@ impl Cpu {
             // 0x16 => {}
             // 0x17 => {}
             // 0x18 => {}
-            // 0x19 => {}
-            // 0x1A => {}
-            // 0x1B => {}
-            // 0x1C => {}
-            // 0x1D => {}
+            0x19 => {
+                self.reg.c = self.alu_rr(self.reg.c);
+                2
+            }
+            0x1A => {
+                self.reg.d = self.alu_rr(self.reg.d);
+                2
+            }
+            0x1B => {
+                self.reg.e = self.alu_rr(self.reg.e);
+                2
+            }
+            0x1C => {
+                self.reg.h = self.alu_rr(self.reg.h);
+                2
+            }
+            0x1D => {
+                self.reg.l = self.alu_rr(self.reg.l);
+                2
+            }
             // 0x1E => {}
-            // 0x1F => {}
+            0x1F => {
+                self.reg.a = self.alu_rr(self.reg.a);
+                2
+            }
             // 0x20 => {}
             // 0x21 => {}
             // 0x22 => {}
@@ -1755,7 +1780,6 @@ impl Cpu {
         res
     }
 
-    // 8-bit ALU 0xCBXX ops
     fn alu_srl(&mut self, val: u8) -> u8 {
         self.reg.set_flag(C, (val & 1) == 1);
         let res = val >> 1;
@@ -1779,13 +1803,22 @@ impl Cpu {
         self.reg.set_flag(H, true);
     }
 
+    fn alu_rr(&mut self, val: u8) -> u8 {
+        let c = val & 1 == 1;
+        let res = (val >> 1) | (if self.reg.flag(C) { 0x80 } else { 0 });
+        self.reg.set_flag(C, c);
+        self.reg.set_flag(Z, res == 0);
+        res
+    }
+
     // 16-bit ALU ops
     fn alu_add16(&mut self, val: u16) {
-        let res = self.reg.hl().wrapping_add(val);
-        self.reg.set_flag(N, false);
-        self.reg.set_flag(H, (res & 0x1000) == 0x1000);
+        let hl = self.reg.hl();
+        let res = hl.wrapping_add(val);
         self.reg
-            .set_flag(C, (self.reg.hl() as u32) + (val as u32) > 0xFFFF);
+            .set_flag(H, (hl & 0x07FF) + (val & 0x07FF) > 0x07FF);
+        self.reg.set_flag(N, false);
+        self.reg.set_flag(C, hl > 0xFFFF - val);
         self.reg.set_hl(res);
     }
 }
@@ -1794,21 +1827,6 @@ impl Cpu {
 mod tests {
     use super::Cpu;
     use crate::memory::Mem;
-    use crate::register::Flag::*;
-
-    #[ignore]
-    #[test]
-    fn test_alu() {
-        let mut cpu = Cpu::new();
-        cpu.alu_add(4);
-        assert_eq!(cpu.reg.a, 5);
-        cpu.reg.set_flag(C, true);
-        cpu.alu_adc(5);
-        assert_eq!(cpu.reg.a, 11);
-        cpu.reg.set_flag(Z, false);
-        cpu.alu_bit(1, 0b00000010);
-        assert_eq!(cpu.reg.flag(Z), false);
-    }
 
     #[test]
     fn test_cpu_instrs() {
