@@ -1718,7 +1718,7 @@ impl Cpu {
         let res = a.wrapping_sub(c).wrapping_sub(b);
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, true);
-        self.reg.set_flag(H, (res & 0x10) == 0x10);
+        self.reg.set_flag(H, (a & 0x0F) < (b & 0x0F) + c);
         self.reg.set_flag(C, (a as u16) < (b as u16) + (c as u16));
         self.reg.a = res;
     }
