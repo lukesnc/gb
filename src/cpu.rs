@@ -1,4 +1,4 @@
-use crate::memory::{IFlag, Mem};
+use crate::memory::Mem;
 use crate::register::Flag::*;
 use crate::register::Reg;
 
@@ -152,7 +152,7 @@ impl Cpu {
             // 0x17 => {}
             0x18 => {
                 let e = self.read_byte() as i8;
-                self.reg.pc += e as i16 as u16;
+                self.reg.pc = self.reg.pc.wrapping_add(e as i16 as u16);
                 3
             }
             0x19 => {
@@ -225,18 +225,18 @@ impl Cpu {
                 // DAA instruction credit: https://forums.nesdev.org/viewtopic.php?t=15944
                 if !self.reg.flag(N) {
                     if self.reg.flag(C) || self.reg.a > 0x99 {
-                        self.reg.a += 0x60;
+                        self.reg.a = self.reg.a.wrapping_add(0x60);
                         self.reg.set_flag(C, true);
                     }
                     if self.reg.flag(H) || (self.reg.a & 0x0f) > 0x09 {
-                        self.reg.a += 0x6;
+                        self.reg.a = self.reg.a.wrapping_add(0x6);
                     }
                 } else {
                     if self.reg.flag(C) {
-                        self.reg.a -= 0x60;
+                        self.reg.a = self.reg.a.wrapping_sub(0x60);
                     }
                     if self.reg.flag(H) {
-                        self.reg.a -= 0x6;
+                        self.reg.a = self.reg.a.wrapping_sub(0x6);
                     }
                 }
                 self.reg.set_flag(Z, self.reg.a == 0);
