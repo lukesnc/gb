@@ -246,7 +246,7 @@ impl Cpu {
             0x28 => {
                 let e = self.read_byte();
                 if self.reg.flag(Z) {
-                    self.reg.pc = self.reg.pc.wrapping_add(e as i16 as u16);
+                    self.reg.pc = self.reg.pc.wrapping_add(e as i8 as i16 as u16);
                     3
                 } else {
                     2
@@ -1057,14 +1057,7 @@ impl Cpu {
             }
             // 0xE7 => {}
             0xE8 => {
-                let e = self.read_byte() as i8 as i16 as u16;
-                let res = self.reg.sp.wrapping_add(e);
-                self.reg.set_flag(Z, false);
-                self.reg.set_flag(N, false);
-                self.reg.set_flag(H, (res & 0x1000) == 0x1000);
-                self.reg
-                    .set_flag(C, (self.reg.sp as u32) + (e as u32) > 0xFFFF);
-                self.reg.sp = res;
+                self.reg.sp = self.alu_add16imm(self.reg.sp);
                 4
             }
             0xE9 => {
@@ -1122,8 +1115,7 @@ impl Cpu {
                 4
             }
             0xF8 => {
-                let e = self.read_byte() as i8 as i16 as u16;
-                let res = self.reg.sp + e;
+                let res = self.alu_add16imm(self.reg.sp);
                 self.reg.set_hl(res);
                 3
             }
@@ -1688,51 +1680,51 @@ impl Cpu {
     }
 
     // 8-bit ALU ops
-    fn alu_add(&mut self, val: u8) {
+    fn alu_add(&mut self, b: u8) {
         let a = self.reg.a;
-        let res = a.wrapping_add(val);
+        let res = a.wrapping_add(b);
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, false);
-        self.reg.set_flag(H, (a & 0xF) + (val & 0xF) > 0xF);
-        self.reg.set_flag(C, (a as u16) + (val as u16) > 0xFF);
+        self.reg.set_flag(H, (a & 0xF) + (b & 0xF) > 0xF);
+        self.reg.set_flag(C, (a as u16) + (b as u16) > 0xFF);
         self.reg.a = res;
     }
 
-    fn alu_adc(&mut self, val: u8) {
+    fn alu_adc(&mut self, b: u8) {
+        let a = self.reg.a;
         let c = if self.reg.flag(C) { 1 } else { 0 };
-        let a = self.reg.a;
-        let res = a.wrapping_add(c).wrapping_add(val);
+        let res = a.wrapping_add(c).wrapping_add(b);
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, false);
-        self.reg.set_flag(H, (a & 0xF) + (val & 0xF) + c > 0xF);
+        self.reg.set_flag(H, (a & 0xF) + (b & 0xF) + c > 0xF);
         self.reg
-            .set_flag(C, (a as u16) + (val as u16) + (c as u16) > 0xFF);
+            .set_flag(C, (a as u16) + (b as u16) + (c as u16) > 0xFF);
         self.reg.a = res;
     }
 
-    fn alu_sub(&mut self, val: u8) {
+    fn alu_sub(&mut self, b: u8) {
         let a = self.reg.a;
-        let res = a.wrapping_sub(val);
+        let res = a.wrapping_sub(b);
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, true);
-        self.reg.set_flag(H, (a & 0x0F) < (val & 0x0F));
-        self.reg.set_flag(C, (a as u16) < (val as u16));
+        self.reg.set_flag(H, (a & 0x0F) < (b & 0x0F));
+        self.reg.set_flag(C, (a as u16) < (b as u16));
         self.reg.a = res;
     }
 
-    fn alu_sbc(&mut self, val: u8) {
+    fn alu_sbc(&mut self, b: u8) {
+        let a = self.reg.a;
         let c = if self.reg.flag(C) { 1 } else { 0 };
-        let res = self.reg.a.wrapping_sub(c).wrapping_sub(val);
+        let res = a.wrapping_sub(c).wrapping_sub(b);
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, true);
         self.reg.set_flag(H, (res & 0x10) == 0x10);
-        self.reg
-            .set_flag(C, (self.reg.a as u16) < (val as u16) + (c as u16));
+        self.reg.set_flag(C, (a as u16) < (b as u16) + (c as u16));
         self.reg.a = res;
     }
 
-    fn alu_and(&mut self, val: u8) {
-        let res = self.reg.a & val;
+    fn alu_and(&mut self, b: u8) {
+        let res = self.reg.a & b;
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, false);
         self.reg.set_flag(H, true);
@@ -1740,8 +1732,8 @@ impl Cpu {
         self.reg.a = res;
     }
 
-    fn alu_xor(&mut self, val: u8) {
-        let res = self.reg.a ^ val;
+    fn alu_xor(&mut self, b: u8) {
+        let res = self.reg.a ^ b;
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, false);
         self.reg.set_flag(H, false);
@@ -1749,8 +1741,8 @@ impl Cpu {
         self.reg.a = res;
     }
 
-    fn alu_or(&mut self, val: u8) {
-        let res = self.reg.a | val;
+    fn alu_or(&mut self, b: u8) {
+        let res = self.reg.a | b;
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, false);
         self.reg.set_flag(H, false);
@@ -1758,85 +1750,77 @@ impl Cpu {
         self.reg.a = res;
     }
 
-    fn alu_cp(&mut self, val: u8) {
+    fn alu_cp(&mut self, b: u8) {
         let a = self.reg.a;
-        self.alu_sub(val);
+        self.alu_sub(b);
         self.reg.a = a;
     }
 
-    fn alu_inc(&mut self, val: u8) -> u8 {
-        let res = val.wrapping_add(1);
+    fn alu_inc(&mut self, b: u8) -> u8 {
+        let res = b.wrapping_add(1);
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, false);
-        self.reg.set_flag(H, (val & 0x0F) + 1 > 0x0F);
+        self.reg.set_flag(H, (b & 0x0F) + 1 > 0x0F);
         res
     }
 
-    fn alu_dec(&mut self, val: u8) -> u8 {
-        let res = val.wrapping_sub(1);
+    fn alu_dec(&mut self, b: u8) -> u8 {
+        let res = b.wrapping_sub(1);
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, true);
-        self.reg.set_flag(H, (val & 0x0F) == 0);
+        self.reg.set_flag(H, (b & 0x0F) == 0);
         res
     }
 
-    fn alu_srl(&mut self, val: u8) -> u8 {
-        self.reg.set_flag(C, (val & 1) == 1);
-        let res = val >> 1;
+    fn alu_srl(&mut self, b: u8) -> u8 {
+        self.reg.set_flag(C, (b & 1) == 1);
+        let res = b >> 1;
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, false);
         self.reg.set_flag(H, false);
         res
     }
 
-    fn alu_swap(&mut self, val: u8) -> u8 {
-        self.reg.set_flag(Z, val == 0);
+    fn alu_swap(&mut self, b: u8) -> u8 {
+        self.reg.set_flag(Z, b == 0);
         self.reg.set_flag(C, false);
         self.reg.set_flag(N, false);
         self.reg.set_flag(H, false);
-        (val << 4) | (val >> 4)
+        (b << 4) | (b >> 4)
     }
 
-    fn alu_bit(&mut self, bit: u8, val: u8) {
-        self.reg.set_flag(Z, (val >> bit) & 1 == 0);
+    fn alu_bit(&mut self, bit: u8, b: u8) {
+        self.reg.set_flag(Z, (b >> bit) & 1 == 0);
         self.reg.set_flag(N, false);
         self.reg.set_flag(H, true);
     }
 
-    fn alu_rr(&mut self, val: u8) -> u8 {
-        let c = val & 1 == 1;
-        let res = (val >> 1) | (if self.reg.flag(C) { 0x80 } else { 0 });
+    fn alu_rr(&mut self, b: u8) -> u8 {
+        let c = b & 1 == 1;
+        let res = (b >> 1) | (if self.reg.flag(C) { 0x80 } else { 0 });
         self.reg.set_flag(C, c);
         self.reg.set_flag(Z, res == 0);
         res
     }
 
     // 16-bit ALU ops
-    fn alu_add16(&mut self, val: u16) {
+    fn alu_add16(&mut self, b: u16) {
         let hl = self.reg.hl();
-        let res = hl.wrapping_add(val);
-        self.reg
-            .set_flag(H, (hl & 0x07FF) + (val & 0x07FF) > 0x07FF);
+        let res = hl.wrapping_add(b);
         self.reg.set_flag(N, false);
-        self.reg.set_flag(C, hl > 0xFFFF - val);
+        self.reg
+            .set_flag(H, (((hl & 0xFFF) + (b & 0xFFF)) & 0x1000) == 0x1000);
+        self.reg.set_flag(C, hl > 0xFFFF - b);
         self.reg.set_hl(res);
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::Cpu;
-    use crate::memory::Mem;
-
-    #[test]
-    fn test_cpu_instrs() {
-        let mut mem = Mem::new();
-        mem.load_rom(&"/home/luke/gbdev/testroms/blargg/cpu_instrs/cpu_instrs.gb".to_string());
-
-        let mut cpu = Cpu::from(mem);
-
-        loop {
-            cpu.cycle();
-        }
+    fn alu_add16imm(&mut self, a: u16) -> u16 {
+        let e = self.read_byte() as i8 as i16 as u16;
+        let res = a.wrapping_add(e);
+        self.reg.set_flag(Z, false);
+        self.reg.set_flag(N, false);
+        self.reg.set_flag(H, (a & 0xF) + (e & 0xF) > 0xF);
+        self.reg.set_flag(C, (a & 0x00FF) + (e & 0x00FF) > 0x00FF);
+        res
     }
 }
