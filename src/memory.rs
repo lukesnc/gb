@@ -1,6 +1,6 @@
 use std::fs;
 
-pub enum IFlag {
+pub enum IFlagMask {
     VBlank = 0b00000001,
     Lcd = 0b00000010,
     Timer = 0b00000100,
@@ -30,6 +30,10 @@ impl Mem {
         for i in 0..0x7FFF {
             self.ram[i] = data[i];
         }
+    }
+
+    pub fn iflag(&self, mask: IFlagMask) -> bool {
+        self.iflag & (mask as u8) > 0
     }
 
     pub fn read(&self, addr: u16) -> u8 {
