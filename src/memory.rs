@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs;
 
 #[derive(Debug)]
@@ -26,21 +25,17 @@ impl Mem {
     }
 
     pub fn interrupt_addr(&mut self) -> Option<u8> {
-        let interrupts = HashMap::from([
-            (0b00000001, 0x40), // VBlank
-            (0b00000010, 0x48), // Lcd
-            (0b00000100, 0x50), // Timer
-            (0b00001000, 0x58), // Serial
-            (0b00010000, 0x60), // Joypad
-        ]);
-
         let requested = self.iflag & self.ie;
-        if requested == 0 {
-            None
-        } else {
-            self.iflag &= !requested;
-            Some(interrupts[&requested])
-        }
+        let addr = match requested {
+            0b00000001 => 0x40, // VBlank
+            0b00000010 => 0x48, // Lcd
+            0b00000100 => 0x50, // Timer
+            0b00001000 => 0x58, // Serial
+            0b00010000 => 0x60, // Joypad
+            _ => return None,
+        };
+        self.iflag &= !requested;
+        Some(addr)
     }
 
     pub fn read(&self, addr: u16) -> u8 {
