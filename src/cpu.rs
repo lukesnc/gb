@@ -11,7 +11,7 @@ pub struct Cpu {
     reg: Reg,
     membus: Mem,
     ime: bool,
-    ime_scheduled: u8,
+    ime_scheduled: i8,
     halted: bool,
 }
 
@@ -62,18 +62,22 @@ impl Cpu {
                 self.ime = true;
                 0
             }
+            -1 => {
+                self.ime = false;
+                0
+            }
+            -2 => -1,
             _ => 0,
         };
 
         // Handle interrupt
         if self.ime && !self.halted {
-            self.ime = false;
             if let Some(addr) = self.membus.interrupt_addr() {
+                self.ime = false;
                 self.push_stack(self.reg.pc);
                 self.reg.pc = addr as u16;
                 let m_cycles = 5;
             }
-            return;
         }
 
         // NOP if halted
@@ -924,7 +928,11 @@ impl Cpu {
                 self.alu_add(n);
                 2
             }
-            // 0xC7 => {}
+            0xC7 => {
+                self.push_stack(self.reg.pc);
+                self.reg.pc = 0x00;
+                4
+            }
             0xC8 => {
                 if self.reg.flag(Z) {
                     self.reg.pc = self.pop_stack();
@@ -971,7 +979,11 @@ impl Cpu {
                 self.alu_adc(n);
                 2
             }
-            // 0xCF => {}
+            0xCF => {
+                self.push_stack(self.reg.pc);
+                self.reg.pc = 0x08;
+                4
+            }
             0xD0 => {
                 if !self.reg.flag(C) {
                     self.reg.pc = self.pop_stack();
@@ -1013,7 +1025,11 @@ impl Cpu {
                 self.alu_sub(n);
                 2
             }
-            // 0xD7 => {}
+            0xD7 => {
+                self.push_stack(self.reg.pc);
+                self.reg.pc = 0x10;
+                4
+            }
             0xD8 => {
                 if self.reg.flag(C) {
                     self.reg.pc = self.pop_stack();
@@ -1051,7 +1067,11 @@ impl Cpu {
                 self.alu_sbc(n);
                 2
             }
-            // 0xDF => {}
+            0xDF => {
+                self.push_stack(self.reg.pc);
+                self.reg.pc = 0x18;
+                4
+            }
             0xE0 => {
                 let n = self.read_byte();
                 let addr = 0xFF00 | n as u16;
@@ -1077,7 +1097,11 @@ impl Cpu {
                 self.alu_and(n);
                 2
             }
-            // 0xE7 => {}
+            0xE7 => {
+                self.push_stack(self.reg.pc);
+                self.reg.pc = 0x20;
+                4
+            }
             0xE8 => {
                 self.reg.sp = self.alu_add16imm(self.reg.sp);
                 4
@@ -1118,7 +1142,7 @@ impl Cpu {
                 2
             }
             0xF3 => {
-                self.ime = false;
+                self.ime_scheduled = -2;
                 1
             }
             0xF5 => {
