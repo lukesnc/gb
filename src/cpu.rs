@@ -11,7 +11,7 @@ pub struct Cpu {
     reg: Reg,
     membus: Mem,
     ime: bool,
-    ime_scheduled: bool,
+    ime_scheduled: u8,
     halted: bool,
 }
 
@@ -22,12 +22,10 @@ impl Cpu {
             reg: Reg::new(),
             membus: mem,
             ime: false,
-            ime_scheduled: false,
+            ime_scheduled: 0,
             halted: false,
         }
     }
-
-    fn handle_interrupt() {}
 
     // CPU cycle
     pub fn cycle(&mut self) {
@@ -57,8 +55,35 @@ impl Cpu {
             self.membus.read(self.reg.pc+3)
         );
 
+        // Check interrupt scheduled
+        self.ime_scheduled = match self.ime_scheduled {
+            2 => 1,
+            1 => {
+                self.ime = true;
+                0
+            }
+            _ => 0,
+        };
+
+        // Handle interrupt
+        if self.ime && !self.halted {
+            self.ime = false;
+            if let Some(addr) = self.membus.interrupt_addr() {
+                self.push_stack(self.reg.pc);
+                self.reg.pc = addr as u16;
+                let m_cycles = 5;
+            }
+            return;
+        }
+
+        // NOP if halted
+        if self.halted {
+            let m_cycles = 1;
+            return;
+        }
+
+        // Noraml flow: fetch opcode and execute
         let opcode = self.read_byte();
-        //println!("op: {:02X}", opcode);
         let m_cycles = self.exec(opcode);
     }
 
@@ -891,8 +916,7 @@ impl Cpu {
                 }
             }
             0xC5 => {
-                let rr = self.reg.bc();
-                self.push_stack(rr);
+                self.push_stack(self.reg.bc());
                 4
             }
             0xC6 => {
@@ -981,8 +1005,7 @@ impl Cpu {
                 }
             }
             0xD5 => {
-                let rr = self.reg.de();
-                self.push_stack(rr);
+                self.push_stack(self.reg.de());
                 4
             }
             0xD6 => {
@@ -1046,8 +1069,7 @@ impl Cpu {
                 2
             }
             0xE5 => {
-                let rr = self.reg.hl();
-                self.push_stack(rr);
+                self.push_stack(self.reg.hl());
                 4
             }
             0xE6 => {
@@ -1100,8 +1122,7 @@ impl Cpu {
                 1
             }
             0xF5 => {
-                let rr = self.reg.af();
-                self.push_stack(rr);
+                self.push_stack(self.reg.af());
                 4
             }
             0xF6 => {
@@ -1129,7 +1150,7 @@ impl Cpu {
                 4
             }
             0xFB => {
-                self.ime_scheduled = true;
+                self.ime_scheduled = 2;
                 1
             }
             0xFE => {
