@@ -120,7 +120,11 @@ impl Cpu {
                 self.reg.b = self.read_byte();
                 2
             }
-            // 0x07 => {}
+            0x07 => {
+                self.reg.a = self.alu_rlc(self.reg.a);
+                self.reg.set_flag(Z, false);
+                1
+            }
             0x08 => {
                 let nn = self.read_word();
                 self.membus.write(nn, self.reg.sp as u8);
@@ -178,7 +182,10 @@ impl Cpu {
                 self.reg.d = self.read_byte();
                 2
             }
-            // 0x17 => {}
+            0x17 => {
+                self.reg.a = self.alu_rl(self.reg.a);
+                1
+            }
             0x18 => {
                 let e = self.read_byte() as i8;
                 self.reg.pc = self.reg.pc.wrapping_add(e as i16 as u16);
@@ -788,6 +795,10 @@ impl Cpu {
             }
             0xA7 => {
                 self.alu_and(self.reg.a);
+                1
+            }
+            0xA8 => {
+                self.alu_xor(self.reg.b);
                 1
             }
             0xA9 => {
@@ -1841,10 +1852,30 @@ impl Cpu {
     }
 
     fn alu_rr(&mut self, b: u8) -> u8 {
-        let c = b & 1 == 1;
+        let c = b & 1;
         let res = (b >> 1) | (if self.reg.flag(C) { 0x80 } else { 0 });
-        self.reg.set_flag(C, c);
+        self.reg.set_flag(C, c == 1);
         self.reg.set_flag(Z, res == 0);
+        res
+    }
+
+    fn alu_rl(&mut self, b: u8) -> u8 {
+        let c = b & 0x80;
+        let res = (b << 1) | (if self.reg.flag(C) { 1 } else { 0 });
+        self.reg.set_flag(Z, false);
+        self.reg.set_flag(C, c == 0x80);
+        self.reg.set_flag(N, false);
+        self.reg.set_flag(H, false);
+        res
+    }
+
+    fn alu_rlc(&mut self, b: u8) -> u8 {
+        let c = b & 0x80;
+        let res = (b << 1) | (c >> 7);
+        self.reg.set_flag(Z, res == 0);
+        self.reg.set_flag(C, c == 0x80);
+        self.reg.set_flag(N, false);
+        self.reg.set_flag(H, false);
         res
     }
 
