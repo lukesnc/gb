@@ -79,7 +79,6 @@ impl Cpu {
                 self.push_stack(self.reg.pc);
                 self.reg.pc = addr as u16;
                 let m_cycles = 5;
-                return;
             }
         }
 
@@ -163,7 +162,7 @@ impl Cpu {
                 self.reg.set_flag(Z, false);
                 1
             }
-            // 0x10 => {}
+            0x10 => 1, // STOP
             0x11 => {
                 let nn = self.read_word();
                 self.reg.set_de(nn);
@@ -1145,8 +1144,7 @@ impl Cpu {
                 4
             }
             0xF0 => {
-                let n = self.read_byte();
-                let addr = 0xFF00 | (n as u16);
+                let addr = 0xFF00 | (self.read_byte() as u16);
                 self.reg.a = self.membus.read(addr);
                 3
             }
@@ -1156,7 +1154,7 @@ impl Cpu {
                 3
             }
             0xF2 => {
-                let addr = (0xFF << 8) | (self.reg.c as u16);
+                let addr = 0xFF00 | (self.reg.c as u16);
                 self.reg.a = self.membus.read(addr);
                 2
             }
