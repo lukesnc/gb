@@ -73,10 +73,13 @@ impl Cpu {
         // Handle interrupt
         if self.ime && !self.halted {
             if let Some(addr) = self.membus.interrupt_addr() {
+                self.halted = false;
                 self.ime = false;
+
                 self.push_stack(self.reg.pc);
                 self.reg.pc = addr as u16;
                 let m_cycles = 5;
+                return;
             }
         }
 
@@ -382,8 +385,7 @@ impl Cpu {
             }
             0x3A => {
                 self.reg.a = self.membus.read(self.reg.hl());
-                let res = self.alu_dec(self.membus.read(self.reg.hl()));
-                self.membus.write(self.reg.hl(), res);
+                self.reg.set_hl(self.reg.hl().wrapping_sub(1));
                 2
             }
             0x3B => {
@@ -606,7 +608,10 @@ impl Cpu {
                 self.membus.write(self.reg.hl(), self.reg.l);
                 2
             }
-            // 0x76 => {}
+            0x76 => {
+                self.halted = true;
+                1
+            }
             0x77 => {
                 self.membus.write(self.reg.hl(), self.reg.a);
                 2
@@ -1727,134 +1732,534 @@ impl Cpu {
                 self.alu_bit(7, self.reg.a);
                 2
             }
-            // 0x80 => {}
-            // 0x81 => {}
-            // 0x82 => {}
-            // 0x83 => {}
-            // 0x84 => {}
-            // 0x85 => {}
-            // 0x86 => {}
-            // 0x87 => {}
-            // 0x88 => {}
-            // 0x89 => {}
-            // 0x8A => {}
-            // 0x8B => {}
-            // 0x8C => {}
-            // 0x8D => {}
-            // 0x8E => {}
-            // 0x8F => {}
-            // 0x90 => {}
-            // 0x91 => {}
-            // 0x92 => {}
-            // 0x93 => {}
-            // 0x94 => {}
-            // 0x95 => {}
-            // 0x96 => {}
-            // 0x97 => {}
-            // 0x98 => {}
-            // 0x99 => {}
-            // 0x9A => {}
-            // 0x9B => {}
-            // 0x9C => {}
-            // 0x9D => {}
-            // 0x9E => {}
-            // 0x9F => {}
-            // 0xA0 => {}
-            // 0xA1 => {}
-            // 0xA2 => {}
-            // 0xA3 => {}
-            // 0xA4 => {}
-            // 0xA5 => {}
-            // 0xA6 => {}
-            // 0xA7 => {}
-            // 0xA8 => {}
-            // 0xA9 => {}
-            // 0xAA => {}
-            // 0xAB => {}
-            // 0xAC => {}
-            // 0xAD => {}
-            // 0xAE => {}
-            // 0xAF => {}
-            // 0xB0 => {}
-            // 0xB1 => {}
-            // 0xB2 => {}
-            // 0xB3 => {}
-            // 0xB4 => {}
-            // 0xB5 => {}
-            // 0xB6 => {}
-            // 0xB7 => {}
-            // 0xB8 => {}
-            // 0xB9 => {}
-            // 0xBA => {}
-            // 0xBB => {}
-            // 0xBC => {}
-            // 0xBD => {}
-            // 0xBE => {}
-            // 0xBF => {}
-            // 0xC0 => {}
-            // 0xC1 => {}
-            // 0xC2 => {}
-            // 0xC3 => {}
-            // 0xC4 => {}
-            // 0xC5 => {}
-            // 0xC6 => {}
-            // 0xC7 => {}
-            // 0xC8 => {}
-            // 0xC9 => {}
-            // 0xCA => {}
-            // 0xCB => {}
-            // 0xCC => {}
-            // 0xCD => {}
-            // 0xCE => {}
-            // 0xCF => {}
-            // 0xD0 => {}
-            // 0xD1 => {}
-            // 0xD2 => {}
-            // 0xD3 => {}
-            // 0xD4 => {}
-            // 0xD5 => {}
-            // 0xD6 => {}
-            // 0xD7 => {}
-            // 0xD8 => {}
-            // 0xD9 => {}
-            // 0xDA => {}
-            // 0xDB => {}
-            // 0xDC => {}
-            // 0xDD => {}
-            // 0xDE => {}
-            // 0xDF => {}
-            // 0xE0 => {}
-            // 0xE1 => {}
-            // 0xE2 => {}
-            // 0xE3 => {}
-            // 0xE4 => {}
-            // 0xE5 => {}
-            // 0xE6 => {}
-            // 0xE7 => {}
-            // 0xE8 => {}
-            // 0xE9 => {}
-            // 0xEA => {}
-            // 0xEB => {}
-            // 0xEC => {}
-            // 0xED => {}
-            // 0xEE => {}
-            // 0xEF => {}
-            // 0xF0 => {}
-            // 0xF1 => {}
-            // 0xF2 => {}
-            // 0xF3 => {}
-            // 0xF4 => {}
-            // 0xF5 => {}
-            // 0xF6 => {}
-            // 0xF7 => {}
-            // 0xF8 => {}
-            // 0xF9 => {}
-            // 0xFA => {}
-            // 0xFB => {}
-            // 0xFC => {}
-            // 0xFD => {}
-            // 0xFE => {}
-            // 0xFF => {}
+            0x80 => {
+                self.reg.b = self.reg.b & !(1 << 0);
+                2
+            }
+            0x81 => {
+                self.reg.c = self.reg.c & !(1 << 0);
+                2
+            }
+            0x82 => {
+                self.reg.d = self.reg.d & !(1 << 0);
+                2
+            }
+            0x83 => {
+                self.reg.e = self.reg.e & !(1 << 0);
+                2
+            }
+            0x84 => {
+                self.reg.h = self.reg.h & !(1 << 0);
+                2
+            }
+            0x85 => {
+                self.reg.l = self.reg.l & !(1 << 0);
+                2
+            }
+            0x86 => {
+                let res = self.membus.read(self.reg.hl()) & !(1 << 0);
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0x87 => {
+                self.reg.a = self.reg.a & !(1 << 0);
+                2
+            }
+            0x88 => {
+                self.reg.b = self.reg.b & !(1 << 1);
+                2
+            }
+            0x89 => {
+                self.reg.c = self.reg.c & !(1 << 1);
+                2
+            }
+            0x8A => {
+                self.reg.d = self.reg.d & !(1 << 1);
+                2
+            }
+            0x8B => {
+                self.reg.e = self.reg.e & !(1 << 1);
+                2
+            }
+            0x8C => {
+                self.reg.h = self.reg.h & !(1 << 1);
+                2
+            }
+            0x8D => {
+                self.reg.l = self.reg.l & !(1 << 1);
+                2
+            }
+            0x8E => {
+                let res = self.membus.read(self.reg.hl()) & !(1 << 1);
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0x8F => {
+                self.reg.a = self.reg.a & !(1 << 1);
+                2
+            }
+            0x90 => {
+                self.reg.b = self.reg.b & !(1 << 2);
+                2
+            }
+            0x91 => {
+                self.reg.c = self.reg.c & !(1 << 2);
+                2
+            }
+            0x92 => {
+                self.reg.d = self.reg.d & !(1 << 2);
+                2
+            }
+            0x93 => {
+                self.reg.e = self.reg.e & !(1 << 2);
+                2
+            }
+            0x94 => {
+                self.reg.h = self.reg.h & !(1 << 2);
+                2
+            }
+            0x95 => {
+                self.reg.l = self.reg.l & !(1 << 2);
+                2
+            }
+            0x96 => {
+                let res = self.membus.read(self.reg.hl()) & !(1 << 2);
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0x97 => {
+                self.reg.a = self.reg.a & !(1 << 2);
+                2
+            }
+            0x98 => {
+                self.reg.b = self.reg.b & !(1 << 3);
+                2
+            }
+            0x99 => {
+                self.reg.c = self.reg.c & !(1 << 3);
+                2
+            }
+            0x9A => {
+                self.reg.d = self.reg.d & !(1 << 3);
+                2
+            }
+            0x9B => {
+                self.reg.e = self.reg.e & !(1 << 3);
+                2
+            }
+            0x9C => {
+                self.reg.h = self.reg.h & !(1 << 3);
+                2
+            }
+            0x9D => {
+                self.reg.l = self.reg.l & !(1 << 3);
+                2
+            }
+            0x9E => {
+                let res = self.membus.read(self.reg.hl()) & !(1 << 3);
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0x9F => {
+                self.reg.a = self.reg.a & !(1 << 3);
+                2
+            }
+            0xA0 => {
+                self.reg.b = self.reg.b & !(1 << 4);
+                2
+            }
+            0xA1 => {
+                self.reg.c = self.reg.c & !(1 << 4);
+                2
+            }
+            0xA2 => {
+                self.reg.d = self.reg.d & !(1 << 4);
+                2
+            }
+            0xA3 => {
+                self.reg.e = self.reg.e & !(1 << 4);
+                2
+            }
+            0xA4 => {
+                self.reg.h = self.reg.h & !(1 << 4);
+                2
+            }
+            0xA5 => {
+                self.reg.l = self.reg.l & !(1 << 4);
+                2
+            }
+            0xA6 => {
+                let res = self.membus.read(self.reg.hl()) & !(1 << 4);
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0xA7 => {
+                self.reg.a = self.reg.a & !(1 << 4);
+                2
+            }
+            0xA8 => {
+                self.reg.b = self.reg.b & !(1 << 5);
+                2
+            }
+            0xA9 => {
+                self.reg.c = self.reg.c & !(1 << 5);
+                2
+            }
+            0xAA => {
+                self.reg.d = self.reg.d & !(1 << 5);
+                2
+            }
+            0xAB => {
+                self.reg.e = self.reg.e & !(1 << 5);
+                2
+            }
+            0xAC => {
+                self.reg.h = self.reg.h & !(1 << 5);
+                2
+            }
+            0xAD => {
+                self.reg.l = self.reg.l & !(1 << 5);
+                2
+            }
+            0xAE => {
+                let res = self.membus.read(self.reg.hl()) & !(1 << 5);
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0xAF => {
+                self.reg.a = self.reg.a & !(1 << 5);
+                2
+            }
+            0xB0 => {
+                self.reg.b = self.reg.b & !(1 << 6);
+                2
+            }
+            0xB1 => {
+                self.reg.c = self.reg.c & !(1 << 6);
+                2
+            }
+            0xB2 => {
+                self.reg.d = self.reg.d & !(1 << 6);
+                2
+            }
+            0xB3 => {
+                self.reg.e = self.reg.e & !(1 << 6);
+                2
+            }
+            0xB4 => {
+                self.reg.h = self.reg.h & !(1 << 6);
+                2
+            }
+            0xB5 => {
+                self.reg.l = self.reg.l & !(1 << 6);
+                2
+            }
+            0xB6 => {
+                let res = self.membus.read(self.reg.hl()) & !(1 << 6);
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0xB7 => {
+                self.reg.a = self.reg.a & !(1 << 6);
+                2
+            }
+            0xB8 => {
+                self.reg.b = self.reg.b & !(1 << 7);
+                2
+            }
+            0xB9 => {
+                self.reg.c = self.reg.c & !(1 << 7);
+                2
+            }
+            0xBA => {
+                self.reg.d = self.reg.d & !(1 << 7);
+                2
+            }
+            0xBB => {
+                self.reg.e = self.reg.e & !(1 << 7);
+                2
+            }
+            0xBC => {
+                self.reg.h = self.reg.h & !(1 << 7);
+                2
+            }
+            0xBD => {
+                self.reg.l = self.reg.l & !(1 << 7);
+                2
+            }
+            0xBE => {
+                let res = self.membus.read(self.reg.hl()) & !(1 << 7);
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0xBF => {
+                self.reg.a = self.reg.a & !(1 << 7);
+                2
+            }
+            0xC0 => {
+                self.reg.b = self.reg.b | (1 << 0);
+                2
+            }
+            0xC1 => {
+                self.reg.c = self.reg.c | (1 << 0);
+                2
+            }
+            0xC2 => {
+                self.reg.d = self.reg.d | (1 << 0);
+                2
+            }
+            0xC3 => {
+                self.reg.e = self.reg.e | (1 << 0);
+                2
+            }
+            0xC4 => {
+                self.reg.h = self.reg.h | (1 << 0);
+                2
+            }
+            0xC5 => {
+                self.reg.l = self.reg.l | (1 << 0);
+                2
+            }
+            0xC6 => {
+                let res = self.membus.read(self.reg.hl()) | (1 << 0);
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0xC7 => {
+                self.reg.a = self.reg.a | (1 << 0);
+                2
+            }
+            0xC8 => {
+                self.reg.b = self.reg.b | (1 << 1);
+                2
+            }
+            0xC9 => {
+                self.reg.c = self.reg.c | (1 << 1);
+                2
+            }
+            0xCA => {
+                self.reg.d = self.reg.d | (1 << 1);
+                2
+            }
+            0xCB => {
+                self.reg.e = self.reg.e | (1 << 1);
+                2
+            }
+            0xCC => {
+                self.reg.h = self.reg.h | (1 << 1);
+                2
+            }
+            0xCD => {
+                self.reg.l = self.reg.l | (1 << 1);
+                2
+            }
+            0xCE => {
+                let res = self.membus.read(self.reg.hl()) | (1 << 1);
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0xCF => {
+                self.reg.a = self.reg.a | (1 << 1);
+                2
+            }
+            0xD0 => {
+                self.reg.b = self.reg.b | (1 << 2);
+                2
+            }
+            0xD1 => {
+                self.reg.c = self.reg.c | (1 << 2);
+                2
+            }
+            0xD2 => {
+                self.reg.d = self.reg.d | (1 << 2);
+                2
+            }
+            0xD3 => {
+                self.reg.e = self.reg.e | (1 << 2);
+                2
+            }
+            0xD4 => {
+                self.reg.h = self.reg.h | (1 << 2);
+                2
+            }
+            0xD5 => {
+                self.reg.l = self.reg.l | (1 << 2);
+                2
+            }
+            0xD6 => {
+                let res = self.membus.read(self.reg.hl()) | (1 << 2);
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0xD7 => {
+                self.reg.a = self.reg.a | (1 << 2);
+                2
+            }
+            0xD8 => {
+                self.reg.b = self.reg.b | (1 << 3);
+                2
+            }
+            0xD9 => {
+                self.reg.c = self.reg.c | (1 << 3);
+                2
+            }
+            0xDA => {
+                self.reg.d = self.reg.d | (1 << 3);
+                2
+            }
+            0xDB => {
+                self.reg.e = self.reg.e | (1 << 3);
+                2
+            }
+            0xDC => {
+                self.reg.h = self.reg.h | (1 << 3);
+                2
+            }
+            0xDD => {
+                self.reg.l = self.reg.l | (1 << 3);
+                2
+            }
+            0xDE => {
+                let res = self.membus.read(self.reg.hl()) | (1 << 3);
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0xDF => {
+                self.reg.a = self.reg.a | (1 << 3);
+                2
+            }
+            0xE0 => {
+                self.reg.b = self.reg.b | (1 << 4);
+                2
+            }
+            0xE1 => {
+                self.reg.c = self.reg.c | (1 << 4);
+                2
+            }
+            0xE2 => {
+                self.reg.d = self.reg.d | (1 << 4);
+                2
+            }
+            0xE3 => {
+                self.reg.e = self.reg.e | (1 << 4);
+                2
+            }
+            0xE4 => {
+                self.reg.h = self.reg.h | (1 << 4);
+                2
+            }
+            0xE5 => {
+                self.reg.l = self.reg.l | (1 << 4);
+                2
+            }
+            0xE6 => {
+                let res = self.membus.read(self.reg.hl()) | (1 << 4);
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0xE7 => {
+                self.reg.a = self.reg.a | (1 << 4);
+                2
+            }
+            0xE8 => {
+                self.reg.b = self.reg.b | (1 << 5);
+                2
+            }
+            0xE9 => {
+                self.reg.c = self.reg.c | (1 << 5);
+                2
+            }
+            0xEA => {
+                self.reg.d = self.reg.d | (1 << 5);
+                2
+            }
+            0xEB => {
+                self.reg.e = self.reg.e | (1 << 5);
+                2
+            }
+            0xEC => {
+                self.reg.h = self.reg.h | (1 << 5);
+                2
+            }
+            0xED => {
+                self.reg.l = self.reg.l | (1 << 5);
+                2
+            }
+            0xEE => {
+                let res = self.membus.read(self.reg.hl()) | (1 << 5);
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0xEF => {
+                self.reg.a = self.reg.a | (1 << 5);
+                2
+            }
+            0xF0 => {
+                self.reg.b = self.reg.b | (1 << 6);
+                2
+            }
+            0xF1 => {
+                self.reg.c = self.reg.c | (1 << 6);
+                2
+            }
+            0xF2 => {
+                self.reg.d = self.reg.d | (1 << 6);
+                2
+            }
+            0xF3 => {
+                self.reg.e = self.reg.e | (1 << 6);
+                2
+            }
+            0xF4 => {
+                self.reg.h = self.reg.h | (1 << 6);
+                2
+            }
+            0xF5 => {
+                self.reg.l = self.reg.l | (1 << 6);
+                2
+            }
+            0xF6 => {
+                let res = self.membus.read(self.reg.hl()) | (1 << 6);
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0xF7 => {
+                self.reg.a = self.reg.a | (1 << 6);
+                2
+            }
+            0xF8 => {
+                self.reg.b = self.reg.b | (1 << 7);
+                2
+            }
+            0xF9 => {
+                self.reg.c = self.reg.c | (1 << 7);
+                2
+            }
+            0xFA => {
+                self.reg.d = self.reg.d | (1 << 7);
+                2
+            }
+            0xFB => {
+                self.reg.e = self.reg.e | (1 << 7);
+                2
+            }
+            0xFC => {
+                self.reg.h = self.reg.h | (1 << 7);
+                2
+            }
+            0xFD => {
+                self.reg.l = self.reg.l | (1 << 7);
+                2
+            }
+            0xFE => {
+                let res = self.membus.read(self.reg.hl()) | (1 << 7);
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0xFF => {
+                self.reg.a = self.reg.a | (1 << 7);
+                2
+            }
             _ => panic!("Unimplemented opcode: 0xCB{:02X}", opcode),
         }
     }

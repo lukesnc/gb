@@ -27,11 +27,11 @@ impl Mem {
     pub fn interrupt_addr(&mut self) -> Option<u8> {
         let requested = self.iflag & self.ie;
         let addr = match requested {
-            0b00000001 => 0x40, // VBlank
-            0b00000010 => 0x48, // Lcd
-            0b00000100 => 0x50, // Timer
-            0b00001000 => 0x58, // Serial
-            0b00010000 => 0x60, // Joypad
+            0b00001 => 0x40, // VBlank
+            0b00010 => 0x48, // Lcd
+            0b00100 => 0x50, // Timer
+            0b01000 => 0x58, // Serial
+            0b10000 => 0x60, // Joypad
             _ => return None,
         };
         self.iflag &= !requested;
