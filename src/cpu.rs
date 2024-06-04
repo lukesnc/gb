@@ -155,7 +155,11 @@ impl Cpu {
                 self.reg.c = self.read_byte();
                 2
             }
-            // 0x0F => {}
+            0x0F => {
+                self.reg.a = self.alu_rrc(self.reg.a);
+                self.reg.set_flag(Z, false);
+                1
+            }
             // 0x10 => {}
             0x11 => {
                 let nn = self.read_word();
@@ -184,6 +188,7 @@ impl Cpu {
             }
             0x17 => {
                 self.reg.a = self.alu_rl(self.reg.a);
+                self.reg.set_flag(Z, false);
                 1
             }
             0x18 => {
@@ -218,8 +223,6 @@ impl Cpu {
             0x1F => {
                 self.reg.a = self.alu_rr(self.reg.a);
                 self.reg.set_flag(Z, false);
-                self.reg.set_flag(N, false);
-                self.reg.set_flag(H, false);
                 1
             }
             0x20 => {
@@ -1204,31 +1207,109 @@ impl Cpu {
 
     fn exec_cb(&mut self, opcode: u8) -> u32 {
         match opcode {
-            // 0x00 => {}
-            // 0x01 => {}
-            // 0x02 => {}
-            // 0x03 => {}
-            // 0x04 => {}
-            // 0x05 => {}
-            // 0x06 => {}
-            // 0x07 => {}
-            // 0x08 => {}
-            // 0x09 => {}
-            // 0x0A => {}
-            // 0x0B => {}
-            // 0x0C => {}
-            // 0x0D => {}
-            // 0x0E => {}
-            // 0x0F => {}
-            // 0x10 => {}
-            // 0x11 => {}
-            // 0x12 => {}
-            // 0x13 => {}
-            // 0x14 => {}
-            // 0x15 => {}
-            // 0x16 => {}
-            // 0x17 => {}
-            // 0x18 => {}
+            0x00 => {
+                self.reg.b = self.alu_rlc(self.reg.b);
+                2
+            }
+            0x01 => {
+                self.reg.c = self.alu_rlc(self.reg.c);
+                2
+            }
+            0x02 => {
+                self.reg.d = self.alu_rlc(self.reg.d);
+                2
+            }
+            0x03 => {
+                self.reg.e = self.alu_rlc(self.reg.e);
+                2
+            }
+            0x04 => {
+                self.reg.h = self.alu_rlc(self.reg.h);
+                2
+            }
+            0x05 => {
+                self.reg.l = self.alu_rlc(self.reg.l);
+                2
+            }
+            0x06 => {
+                let res = self.alu_rlc(self.membus.read(self.reg.hl()));
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0x07 => {
+                self.reg.a = self.alu_rlc(self.reg.a);
+                2
+            }
+            0x08 => {
+                self.reg.b = self.alu_rrc(self.reg.b);
+                2
+            }
+            0x09 => {
+                self.reg.c = self.alu_rrc(self.reg.c);
+                2
+            }
+            0x0A => {
+                self.reg.d = self.alu_rrc(self.reg.d);
+                2
+            }
+            0x0B => {
+                self.reg.e = self.alu_rrc(self.reg.e);
+                2
+            }
+            0x0C => {
+                self.reg.h = self.alu_rrc(self.reg.h);
+                2
+            }
+            0x0D => {
+                self.reg.l = self.alu_rrc(self.reg.l);
+                2
+            }
+            0x0E => {
+                let res = self.alu_rrc(self.membus.read(self.reg.hl()));
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0x0F => {
+                self.reg.a = self.alu_rrc(self.reg.a);
+                2
+            }
+            0x10 => {
+                self.reg.b = self.alu_rl(self.reg.b);
+                2
+            }
+            0x11 => {
+                self.reg.c = self.alu_rl(self.reg.c);
+                2
+            }
+            0x12 => {
+                self.reg.d = self.alu_rl(self.reg.d);
+                2
+            }
+            0x13 => {
+                self.reg.e = self.alu_rl(self.reg.e);
+                2
+            }
+            0x14 => {
+                self.reg.h = self.alu_rl(self.reg.h);
+                2
+            }
+            0x15 => {
+                self.reg.l = self.alu_rl(self.reg.l);
+                2
+            }
+            0x16 => {
+                let res = self.alu_rl(self.membus.read(self.reg.hl()));
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0x17 => {
+                self.reg.a = self.alu_rl(self.reg.a);
+                2
+            }
+            0x18 => {
+                self.reg.b = self.alu_rr(self.reg.b);
+                2
+            }
             0x19 => {
                 self.reg.c = self.alu_rr(self.reg.c);
                 2
@@ -1249,27 +1330,81 @@ impl Cpu {
                 self.reg.l = self.alu_rr(self.reg.l);
                 2
             }
-            // 0x1E => {}
+            0x1E => {
+                let res = self.alu_rr(self.membus.read(self.reg.hl()));
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
             0x1F => {
                 self.reg.a = self.alu_rr(self.reg.a);
                 2
             }
-            // 0x20 => {}
-            // 0x21 => {}
-            // 0x22 => {}
-            // 0x23 => {}
-            // 0x24 => {}
-            // 0x25 => {}
-            // 0x26 => {}
-            // 0x27 => {}
-            // 0x28 => {}
-            // 0x29 => {}
-            // 0x2A => {}
-            // 0x2B => {}
-            // 0x2C => {}
-            // 0x2D => {}
-            // 0x2E => {}
-            // 0x2F => {}
+            0x20 => {
+                self.reg.b = self.alu_sla(self.reg.b);
+                2
+            }
+            0x21 => {
+                self.reg.c = self.alu_sla(self.reg.c);
+                2
+            }
+            0x22 => {
+                self.reg.d = self.alu_sla(self.reg.d);
+                2
+            }
+            0x23 => {
+                self.reg.e = self.alu_sla(self.reg.e);
+                2
+            }
+            0x24 => {
+                self.reg.h = self.alu_sla(self.reg.h);
+                2
+            }
+            0x25 => {
+                self.reg.l = self.alu_sla(self.reg.l);
+                2
+            }
+            0x26 => {
+                let res = self.alu_sla(self.membus.read(self.reg.hl()));
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0x27 => {
+                self.reg.a = self.alu_sla(self.reg.a);
+                2
+            }
+            0x28 => {
+                self.reg.b = self.alu_sra(self.reg.b);
+                2
+            }
+            0x29 => {
+                self.reg.c = self.alu_sra(self.reg.c);
+                2
+            }
+            0x2A => {
+                self.reg.d = self.alu_sra(self.reg.d);
+                2
+            }
+            0x2B => {
+                self.reg.e = self.alu_sra(self.reg.e);
+                2
+            }
+            0x2C => {
+                self.reg.h = self.alu_sra(self.reg.h);
+                2
+            }
+            0x2D => {
+                self.reg.l = self.alu_sra(self.reg.l);
+                2
+            }
+            0x2E => {
+                let res = self.alu_sra(self.membus.read(self.reg.hl()));
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
+            0x2F => {
+                self.reg.a = self.alu_sra(self.reg.a);
+                2
+            }
             0x30 => {
                 self.reg.b = self.alu_swap(self.reg.b);
                 2
@@ -1307,12 +1442,31 @@ impl Cpu {
                 self.reg.b = self.alu_srl(self.reg.b);
                 2
             }
-            // 0x39 => {}
-            // 0x3A => {}
-            // 0x3B => {}
-            // 0x3C => {}
-            // 0x3D => {}
-            // 0x3E => {}
+            0x39 => {
+                self.reg.c = self.alu_srl(self.reg.c);
+                2
+            }
+            0x3A => {
+                self.reg.d = self.alu_srl(self.reg.d);
+                2
+            }
+            0x3B => {
+                self.reg.e = self.alu_srl(self.reg.e);
+                2
+            }
+            0x3C => {
+                self.reg.h = self.alu_srl(self.reg.h);
+                2
+            }
+            0x3D => {
+                self.reg.l = self.alu_srl(self.reg.l);
+                2
+            }
+            0x3E => {
+                let res = self.alu_srl(self.membus.read(self.reg.hl()));
+                self.membus.write(self.reg.hl(), res);
+                4
+            }
             0x3F => {
                 self.reg.a = self.alu_srl(self.reg.a);
                 2
@@ -1828,15 +1982,6 @@ impl Cpu {
         res
     }
 
-    fn alu_srl(&mut self, b: u8) -> u8 {
-        self.reg.set_flag(C, (b & 1) == 1);
-        let res = b >> 1;
-        self.reg.set_flag(Z, res == 0);
-        self.reg.set_flag(N, false);
-        self.reg.set_flag(H, false);
-        res
-    }
-
     fn alu_swap(&mut self, b: u8) -> u8 {
         self.reg.set_flag(Z, b == 0);
         self.reg.set_flag(C, false);
@@ -1854,15 +1999,27 @@ impl Cpu {
     fn alu_rr(&mut self, b: u8) -> u8 {
         let c = b & 1;
         let res = (b >> 1) | (if self.reg.flag(C) { 0x80 } else { 0 });
-        self.reg.set_flag(C, c == 1);
         self.reg.set_flag(Z, res == 0);
+        self.reg.set_flag(C, c == 1);
+        self.reg.set_flag(N, false);
+        self.reg.set_flag(H, false);
+        res
+    }
+
+    fn alu_rrc(&mut self, b: u8) -> u8 {
+        let c = b & 1;
+        let res = (b >> 1) | (c << 7);
+        self.reg.set_flag(Z, res == 0);
+        self.reg.set_flag(C, c == 1);
+        self.reg.set_flag(N, false);
+        self.reg.set_flag(H, false);
         res
     }
 
     fn alu_rl(&mut self, b: u8) -> u8 {
         let c = b & 0x80;
         let res = (b << 1) | (if self.reg.flag(C) { 1 } else { 0 });
-        self.reg.set_flag(Z, false);
+        self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(C, c == 0x80);
         self.reg.set_flag(N, false);
         self.reg.set_flag(H, false);
@@ -1874,6 +2031,33 @@ impl Cpu {
         let res = (b << 1) | (c >> 7);
         self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(C, c == 0x80);
+        self.reg.set_flag(N, false);
+        self.reg.set_flag(H, false);
+        res
+    }
+
+    fn alu_srl(&mut self, b: u8) -> u8 {
+        self.reg.set_flag(C, (b & 1) == 1);
+        let res = b >> 1;
+        self.reg.set_flag(Z, res == 0);
+        self.reg.set_flag(N, false);
+        self.reg.set_flag(H, false);
+        res
+    }
+
+    fn alu_sla(&mut self, b: u8) -> u8 {
+        self.reg.set_flag(C, (b & 0x80) == 0x80);
+        let res = b << 1;
+        self.reg.set_flag(Z, res == 0);
+        self.reg.set_flag(N, false);
+        self.reg.set_flag(H, false);
+        res
+    }
+
+    fn alu_sra(&mut self, b: u8) -> u8 {
+        self.reg.set_flag(C, (b & 1) == 1);
+        let res = (b & 0x80) | (b >> 1);
+        self.reg.set_flag(Z, res == 0);
         self.reg.set_flag(N, false);
         self.reg.set_flag(H, false);
         res
