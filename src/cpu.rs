@@ -2,16 +2,12 @@ use crate::memory::Mem;
 use crate::register::Flag::*;
 use crate::register::Reg;
 
-use std::time::Duration;
-
-const M_CYCLE: Duration = Duration::from_nanos(238 * 4);
-
 #[derive(Debug)]
 pub struct Cpu {
     reg: Reg,
     membus: Mem,
     ime: bool,
-    ime_scheduled: i8,
+    ime_next: bool,
     halted: bool,
 }
 
@@ -22,7 +18,7 @@ impl Cpu {
             reg: Reg::new(),
             membus: mem,
             ime: false,
-            ime_scheduled: 0,
+            ime_next: false,
             halted: false,
         }
     }
@@ -30,71 +26,64 @@ impl Cpu {
     // CPU cycle
     pub fn cycle(&mut self) {
         // blarggs test - serial output
-        //if self.membus.read(0xff02) == 0x81 {
-        //    let c = self.membus.read(0xff01);
-        //    println!("{}", c);
-        //    self.membus.write(0xff02, 0x0);
-        //}
+        if self.membus.read(0xff02) == 0x81 {
+            let c = self.membus.read(0xff01);
+            if let Some(c) = char::from_u32(c as u32) {
+                print!("{}", c);
+            }
+            self.membus.write(0xff02, 0x0);
+        }
 
         // gameboy doctor output
-        println!(
-            "A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}",
-            self.reg.a,
-            self.reg.f,
-            self.reg.b,
-            self.reg.c,
-            self.reg.d,
-            self.reg.e,
-            self.reg.h,
-            self.reg.l,
-            self.reg.sp,
-            self.reg.pc,
-            self.membus.read(self.reg.pc),
-            self.membus.read(self.reg.pc+1),
-            self.membus.read(self.reg.pc+2),
-            self.membus.read(self.reg.pc+3)
-        );
-
-        // Check interrupt scheduled
-        self.ime_scheduled = match self.ime_scheduled {
-            2 => 1,
-            1 => {
-                self.ime = true;
-                0
-            }
-            -1 => {
-                self.ime = false;
-                0
-            }
-            -2 => -1,
-            _ => 0,
-        };
+        //println!(
+        //    "A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}",
+        //    self.reg.a,
+        //    self.reg.f,
+        //    self.reg.b,
+        //    self.reg.c,
+        //    self.reg.d,
+        //    self.reg.e,
+        //    self.reg.h,
+        //    self.reg.l,
+        //    self.reg.sp,
+        //    self.reg.pc,
+        //    self.membus.read(self.reg.pc),
+        //    self.membus.read(self.reg.pc+1),
+        //    self.membus.read(self.reg.pc+2),
+        //    self.membus.read(self.reg.pc+3)
+        //);
 
         // Handle interrupt
-        if self.ime && !self.halted {
+        if self.ime {
             if let Some(addr) = self.membus.interrupt_addr() {
                 self.halted = false;
                 self.ime = false;
+                self.ime_next = false;
 
                 self.push_stack(self.reg.pc);
                 self.reg.pc = addr as u16;
-                let m_cycles = 5;
+                self.membus.do_cycles(5);
             }
         }
 
+        // Check if interrupt scheduled
+        self.ime = self.ime_next;
+
         // NOP if halted
         if self.halted {
-            let m_cycles = 1;
+            self.membus.do_cycles(1);
+            self.membus.write(0xFF04, 0);
             return;
         }
 
         // Noraml flow: fetch opcode and execute
         let opcode = self.read_byte();
         let m_cycles = self.exec(opcode);
+        self.membus.do_cycles(m_cycles);
     }
 
     // Execute opcode
-    fn exec(&mut self, opcode: u8) -> u32 {
+    fn exec(&mut self, opcode: u8) -> u8 {
         match opcode {
             0x00 => 1,
             0x01 => {
@@ -1159,7 +1148,7 @@ impl Cpu {
                 2
             }
             0xF3 => {
-                self.ime_scheduled = -2;
+                self.ime_next = false;
                 1
             }
             0xF5 => {
@@ -1191,7 +1180,7 @@ impl Cpu {
                 4
             }
             0xFB => {
-                self.ime_scheduled = 2;
+                self.ime_next = true;
                 1
             }
             0xFE => {
@@ -1208,7 +1197,7 @@ impl Cpu {
         }
     }
 
-    fn exec_cb(&mut self, opcode: u8) -> u32 {
+    fn exec_cb(&mut self, opcode: u8) -> u8 {
         match opcode {
             0x00 => {
                 self.reg.b = self.alu_rlc(self.reg.b);
@@ -2258,7 +2247,6 @@ impl Cpu {
                 self.reg.a = self.reg.a | (1 << 7);
                 2
             }
-            _ => panic!("Unimplemented opcode: 0xCB{:02X}", opcode),
         }
     }
 
