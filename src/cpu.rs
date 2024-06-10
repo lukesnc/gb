@@ -2,7 +2,6 @@ use crate::memory::Mem;
 use crate::register::Flag::*;
 use crate::register::Reg;
 
-#[derive(Debug)]
 pub struct Cpu {
     reg: Reg,
     membus: Mem,
@@ -72,7 +71,6 @@ impl Cpu {
         // NOP if halted
         if self.halted {
             self.membus.do_cycles(1);
-            self.membus.write(0xFF04, 0);
             return;
         }
 
@@ -83,7 +81,7 @@ impl Cpu {
     }
 
     // Execute opcode
-    fn exec(&mut self, opcode: u8) -> u8 {
+    fn exec(&mut self, opcode: u8) -> u32 {
         match opcode {
             0x00 => 1,
             0x01 => {
@@ -1197,7 +1195,7 @@ impl Cpu {
         }
     }
 
-    fn exec_cb(&mut self, opcode: u8) -> u8 {
+    fn exec_cb(&mut self, opcode: u8) -> u32 {
         match opcode {
             0x00 => {
                 self.reg.b = self.alu_rlc(self.reg.b);
