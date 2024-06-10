@@ -3,7 +3,9 @@ use std::env;
 use cpu::Cpu;
 use memory::Mem;
 
+mod buttons;
 mod cpu;
+mod graphics;
 mod memory;
 mod register;
 

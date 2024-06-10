@@ -1,5 +1,7 @@
 use std::fs;
 
+use crate::buttons::Btns;
+
 struct Timer {
     div: u8,
     tima: u8,
@@ -29,6 +31,7 @@ pub struct Mem {
     ie: u8,    // interrupt enable, seperate from the CPUs ime reg
     iflag: u8, // interrupt flag
     timer: Timer,
+    btns: Btns,
 }
 
 impl Mem {
@@ -45,6 +48,7 @@ impl Mem {
                 running_div: 0,
                 running_counter: 0,
             },
+            btns: Btns::new(),
         }
     }
 
@@ -72,6 +76,7 @@ impl Mem {
 
     pub fn read(&self, addr: u16) -> u8 {
         match addr {
+            0xFF00 => self.btns.data(),
             0xFF04 => self.timer.div,
             0xFF05 => self.timer.tima,
             0xFF06 => self.timer.tma,
@@ -85,6 +90,7 @@ impl Mem {
 
     pub fn write(&mut self, addr: u16, val: u8) {
         match addr {
+            0xFF00 => self.btns.pick_row(val),
             0xFF04 => self.timer.div = 0,
             0xFF05 => self.timer.tima = val,
             0xFF06 => self.timer.tma = val,
