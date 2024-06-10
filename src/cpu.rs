@@ -1,10 +1,10 @@
-use crate::memory::Mem;
+use crate::memory::Mmu;
 use crate::register::Flag::*;
 use crate::register::Reg;
 
 pub struct Cpu {
     reg: Reg,
-    membus: Mem,
+    membus: Mmu,
     ime: bool,
     ime_next: bool,
     halted: bool,
@@ -12,7 +12,7 @@ pub struct Cpu {
 
 impl Cpu {
     /// Init CPU from existing memory
-    pub fn from(mem: Mem) -> Self {
+    pub fn from(mem: Mmu) -> Self {
         Cpu {
             reg: Reg::new(),
             membus: mem,
@@ -53,9 +53,13 @@ impl Cpu {
         //);
 
         // Handle interrupt
-        if self.ime {
+        if self.halted || self.ime {
             if let Some(addr) = self.membus.interrupt_addr() {
                 self.halted = false;
+                if !self.ime {
+                    return;
+                }
+
                 self.ime = false;
                 self.ime_next = false;
 
