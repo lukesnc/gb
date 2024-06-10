@@ -54,9 +54,10 @@ impl Btns {
         let mut data = self.row;
         if self.row & 0x10 == 0 {
             data |= self.dpad_nib;
-        }
-        if self.row & 0x20 == 0 {
+        } else if self.row & 0x20 == 0 {
             data |= self.btn_nib;
+        } else {
+            data |= 0x0F;
         }
         data
     }
@@ -72,10 +73,17 @@ mod tests {
         use DpadDirection::*;
 
         let mut btns = Btns::new();
+
+        // All released
+        btns.pick_row(0x30);
+        assert_eq!(btns.data() & 0xF, 0xF);
+
+        // A + read Btns
         btns.pick_row(!0x20);
         btns.press(KeyEvent::Button(A));
         assert_eq!(btns.data(), 0b11011110);
 
+        // Up + read DPad
         btns.pick_row(!0x10);
         btns.press(KeyEvent::Dpad(Up));
         assert_eq!(btns.data(), 0b11101011);

@@ -26,7 +26,7 @@ impl Timer {
     }
 }
 
-pub struct Mem {
+pub struct Mmu {
     ram: [u8; 65535],
     ie: u8,    // interrupt enable, seperate from the CPUs ime reg
     iflag: u8, // interrupt flag
@@ -34,9 +34,9 @@ pub struct Mem {
     btns: Btns,
 }
 
-impl Mem {
+impl Mmu {
     pub fn new() -> Self {
-        Mem {
+        Mmu {
             ram: [0; 65535],
             ie: 0xE1,
             iflag: 0,
@@ -121,6 +121,11 @@ impl Mem {
                 }
                 self.timer.running_counter -= step_size;
             }
+        }
+
+        // Buttons routine (check lower nibble any button is pressed)
+        if self.btns.data() & 0xF < 0xF {
+            self.iflag |= 1 << 4;
         }
     }
 }
