@@ -1,6 +1,7 @@
 use std::fs;
 
 use crate::buttons::Btns;
+use crate::graphics::Gpu;
 
 struct Timer {
     div: u8,
@@ -32,6 +33,7 @@ pub struct Mmu {
     iflag: u8, // interrupt flag
     timer: Timer,
     btns: Btns,
+    gpu: Gpu,
 }
 
 impl Mmu {
@@ -49,6 +51,7 @@ impl Mmu {
                 running_counter: 0,
             },
             btns: Btns::new(),
+            gpu: Gpu::new(),
         }
     }
 
@@ -76,13 +79,25 @@ impl Mmu {
 
     pub fn read(&self, addr: u16) -> u8 {
         match addr {
+            0x8000..=0x9FFF => self.gpu.read_vram(addr),
             0xFF00 => self.btns.data(),
             0xFF04 => self.timer.div,
             0xFF05 => self.timer.tima,
             0xFF06 => self.timer.tma,
             0xFF07 => self.timer.tac,
             0xFF0F => self.iflag,
-            0xFF44 => 0x90, // Hardcode LCD
+            0xFF40 => self.gpu.lcdc,
+            0xFF41 => self.gpu.stat,
+            0xFF42 => self.gpu.scy,
+            0xFF43 => self.gpu.scx,
+            0xFF44 => self.gpu.ly,
+            0xFF45 => self.gpu.lyc,
+            0xFF46 => 0, // DMA transfer on write only
+            0xFF47 => self.gpu.bgp,
+            0xFF48 => self.gpu.obp0,
+            0xFF49 => self.gpu.obp1,
+            0xFF4A => self.gpu.wy,
+            0xFF4B => self.gpu.wx,
             0xFFFF => self.ie,
             _ => self.ram[addr as usize],
         }
@@ -90,12 +105,25 @@ impl Mmu {
 
     pub fn write(&mut self, addr: u16, val: u8) {
         match addr {
+            0x8000..=0x9FFF => self.gpu.write_vram(addr, val),
             0xFF00 => self.btns.pick_row(val),
             0xFF04 => self.timer.div = 0,
             0xFF05 => self.timer.tima = val,
             0xFF06 => self.timer.tma = val,
             0xFF07 => self.timer.tac = val,
             0xFF0F => self.iflag = val,
+            0xFF40 => self.gpu.lcdc = val,
+            0xFF41 => self.gpu.stat = val,
+            0xFF42 => self.gpu.scy = val,
+            0xFF43 => self.gpu.scx = val,
+            0xFF44 => {} // LY read only,
+            0xFF45 => self.gpu.lyc = val,
+            0xFF46 => self.dma_transfer(val),
+            0xFF47 => self.gpu.bgp = val,
+            0xFF48 => self.gpu.obp0 = val,
+            0xFF49 => self.gpu.obp1 = val,
+            0xFF4A => self.gpu.wy = val,
+            0xFF4B => self.gpu.wx = val,
             0xFFFF => self.ie = val,
             _ => self.ram[addr as usize] = val,
         };
@@ -128,4 +156,6 @@ impl Mmu {
             self.iflag |= 1 << 4;
         }
     }
+
+    fn dma_transfer(&mut self, val: u8) {}
 }
