@@ -1,6 +1,6 @@
 # Game Boy Emulator
 
-This is an emulator of the original Game Boy (DMG) I made in Rust
+This is an emulator of the original Game Boy (model DMG) I made in Rust.
 
 ## Resources
 
