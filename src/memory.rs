@@ -33,7 +33,7 @@ pub struct Mmu {
     iflag: u8, // interrupt flag
     timer: Timer,
     btns: Btns,
-    gpu: Gpu,
+    pub gpu: Gpu,
 }
 
 impl Mmu {
@@ -155,7 +155,21 @@ impl Mmu {
         if self.btns.data() & 0xF < 0xF {
             self.iflag |= 1 << 4;
         }
+
+        // GPU routine
+        if self.gpu.should_vblank_interrupt() {
+            self.iflag |= 1;
+        }
+        if self.gpu.should_stat_interrupt() {
+            self.iflag |= 0b10;
+        }
     }
 
-    fn dma_transfer(&mut self, val: u8) {}
+    fn dma_transfer(&mut self, val: u8) {
+        let source = (val as usize) << 8;
+        for offset in 0..0x9F {
+            self.ram[0xFE00 + offset] = self.ram[source + offset];
+        }
+        self.do_cycles(160);
+    }
 }

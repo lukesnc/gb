@@ -4,7 +4,7 @@ use crate::register::Reg;
 
 pub struct Cpu {
     reg: Reg,
-    membus: Mmu,
+    pub membus: Mmu,
     ime: bool,
     ime_next: bool,
     halted: bool,
@@ -32,25 +32,6 @@ impl Cpu {
             }
             self.membus.write(0xff02, 0x0);
         }
-
-        // gameboy doctor output
-        //println!(
-        //    "A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}",
-        //    self.reg.a,
-        //    self.reg.f,
-        //    self.reg.b,
-        //    self.reg.c,
-        //    self.reg.d,
-        //    self.reg.e,
-        //    self.reg.h,
-        //    self.reg.l,
-        //    self.reg.sp,
-        //    self.reg.pc,
-        //    self.membus.read(self.reg.pc),
-        //    self.membus.read(self.reg.pc+1),
-        //    self.membus.read(self.reg.pc+2),
-        //    self.membus.read(self.reg.pc+3)
-        //);
 
         // Handle interrupt
         if self.halted || self.ime {

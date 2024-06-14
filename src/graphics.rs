@@ -3,6 +3,31 @@ pub const HEIGHT: u32 = 144;
 
 type Tile = [u8; 16];
 
+fn rows(tile: Tile) -> [[u8; 2]; 8] {
+    let mut rows: [[u8; 2]; 8] = [[0; 2]; 8];
+    for (i, chunk) in tile.chunks(2).enumerate() {
+        rows[i].copy_from_slice(chunk);
+    }
+    rows
+}
+
+fn pixel_color_map(tile: Tile) -> [[u8; 8]; 8] {
+    let mut map: [[u8; 8]; 8] = [[0; 8]; 8];
+    let rows = rows(tile);
+    for (line, row) in rows.iter().enumerate() {
+        let p1 = row[0]; // a..h
+        let p2 = row[1]; // i..p
+
+        for px in 0..8 {
+            let b1 = (p1 & (1 << 7 - px)) >> (7 - px);
+            let b2 = (p2 & (1 << 7 - px)) >> (7 - px);
+            let color = b2 << 1 | b1;
+            map[line][px] = color;
+        }
+    }
+    map
+}
+
 pub struct Gpu {
     vram: [u8; 8192],
     pub lcdc: u8, // LCD control
@@ -44,13 +69,13 @@ impl Gpu {
         self.vram[addr as usize - 0x8000] = val;
     }
 
-    // LCDC.7
+    /// LCDC.7
     fn lcd_enable(&self) -> bool {
         self.lcdc & (1 << 7) > 0
     }
 
-    // LCDC.6
-    fn window_tile_map_area(&self) -> u16 {
+    /// LCDC.6
+    fn win_tile_map_area(&self) -> u16 {
         if self.lcdc & (1 << 6) == 0 {
             0x9800
         } else {
@@ -58,21 +83,19 @@ impl Gpu {
         }
     }
 
-    // LCDC.5
-    fn window_enable(&self) -> bool {
+    /// LCDC.5
+    fn win_enable(&self) -> bool {
         self.lcdc & (1 << 5) > 0
     }
 
-    // LCDC.4
-    fn bg_window_tile_data_area(&self) -> u16 {
-        if self.lcdc & (1 << 4) == 0 {
-            0x8800
-        } else {
-            0x8000
-        }
+    /// LCDC.4
+    /// True: 0x8000 based normal addressing.
+    /// False: 0x9000 based signed addressing.
+    fn bg_win_addr_mode(&self) -> bool {
+        self.lcdc & (1 << 4) > 0
     }
 
-    // LCDC.3
+    /// LCDC.3
     fn bg_tile_map_area(&self) -> u16 {
         if self.lcdc & (1 << 3) == 0 {
             0x9800
@@ -81,7 +104,7 @@ impl Gpu {
         }
     }
 
-    // LCDC.2
+    /// LCDC.2
     fn obj_size(&self) -> u32 {
         if self.lcdc & (1 << 2) == 0 {
             8 * 8
@@ -90,18 +113,93 @@ impl Gpu {
         }
     }
 
-    // LCDC.1
+    /// LCDC.1
     fn obj_enable(&self) -> bool {
         self.lcdc & (1 << 1) > 0
     }
 
-    // LCDC.0
-    fn bg_window_enable(&self) -> bool {
+    /// LCDC.0
+    fn bg_win_enable(&self) -> bool {
         self.lcdc & 1 > 0
     }
 
-    //fn tile(&mut self, obj_num: usize) -> Tile {
-    //    let base_addr = obj_num * 16;
-    //    let tile_data = &self.vram[base_addr..base_addr + 16];
-    //}
+    fn ppu_mode(&self) -> u8 {
+        self.stat & 0b11
+    }
+
+    pub fn should_vblank_interrupt(&self) -> bool {
+        self.ppu_mode() == 1
+    }
+
+    pub fn should_stat_interrupt(&self) -> bool {
+        (self.stat & (1 << 6) > 0 && self.stat & (1 << 2) > 0)    // LYC int
+            || (self.stat & (1 << 5) > 0 && self.ppu_mode() == 2) // Mode 2 int
+            || (self.stat & (1 << 4) > 0 && self.ppu_mode() == 1) // Mode 1 int
+            || (self.stat & (1 << 3) > 0 && self.ppu_mode() == 0) // Mode 0 int
+    }
+
+    fn object(&self, id: u8) -> Tile {
+        let start_addr = 0x8000 + (16 * id as u16);
+        let mut tile = [0; 16];
+        for i in 0..tile.len() {
+            tile[i] = self.read_vram(start_addr + i as u16);
+        }
+        tile
+    }
+
+    fn bg_win(&self, id: u8) -> Tile {
+        let mut tile = [0; 16];
+        let start_addr = if self.bg_win_addr_mode() {
+            0x8000 + (16 * id as u16)
+        } else {
+            let id = if id > 127 { 127 - id as i8 } else { id as i8 };
+            let offset = 16 * id as i32;
+            (0x9000 + offset) as u16
+        };
+
+        for i in 0..tile.len() {
+            tile[i] = self.read_vram(start_addr as u16 + i as u16);
+        }
+        tile
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tile_t() {
+        let t: Tile = [
+            0x3C, 0x7E, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x7E, 0x5E, 0x7E, 0x0A, 0x7C, 0x56,
+            0x38, 0x7C,
+        ];
+
+        assert_eq!(
+            rows(t),
+            [
+                [60, 126],
+                [66, 66],
+                [66, 66],
+                [66, 66],
+                [126, 94],
+                [126, 10],
+                [124, 86],
+                [56, 124],
+            ]
+        );
+        assert_eq!(
+            pixel_color_map(t),
+            [
+                [0, 2, 3, 3, 3, 3, 2, 0],
+                [0, 3, 0, 0, 0, 0, 3, 0],
+                [0, 3, 0, 0, 0, 0, 3, 0],
+                [0, 3, 0, 0, 0, 0, 3, 0],
+                [0, 3, 1, 3, 3, 3, 3, 0],
+                [0, 1, 1, 1, 3, 1, 3, 0],
+                [0, 3, 1, 3, 1, 3, 2, 0],
+                [0, 2, 3, 3, 3, 2, 0, 0],
+            ]
+        );
+    }
 }

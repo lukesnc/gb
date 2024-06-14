@@ -74,8 +74,8 @@ impl Reg {
         self.l = (value & 0x00FF) as u8;
     }
 
-    pub fn flag(&self, mask: Flag) -> bool {
-        self.f & (mask as u8) > 0
+    pub fn flag(&self, flag: Flag) -> bool {
+        self.f & (flag as u8) > 0
     }
 
     pub fn set_flag(&mut self, mask: Flag, value: bool) {
