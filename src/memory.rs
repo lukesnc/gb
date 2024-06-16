@@ -32,7 +32,7 @@ pub struct Mmu {
     ie: u8,    // interrupt enable, seperate from the CPUs ime reg
     iflag: u8, // interrupt flag
     timer: Timer,
-    btns: Btns,
+    pub btns: Btns,
     pub gpu: Gpu,
 }
 
