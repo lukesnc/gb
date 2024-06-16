@@ -3,7 +3,7 @@ pub const HEIGHT: u32 = 144;
 
 type Tile = [u8; 16];
 
-fn rows(tile: Tile) -> [[u8; 2]; 8] {
+fn tile_rows(tile: Tile) -> [[u8; 2]; 8] {
     let mut rows: [[u8; 2]; 8] = [[0; 2]; 8];
     for (i, chunk) in tile.chunks(2).enumerate() {
         rows[i].copy_from_slice(chunk);
@@ -11,9 +11,9 @@ fn rows(tile: Tile) -> [[u8; 2]; 8] {
     rows
 }
 
-fn pixel_color_map(tile: Tile) -> [[u8; 8]; 8] {
+fn tile_color_map(tile: Tile) -> [[u8; 8]; 8] {
     let mut map: [[u8; 8]; 8] = [[0; 8]; 8];
-    let rows = rows(tile);
+    let rows = tile_rows(tile);
     for (line, row) in rows.iter().enumerate() {
         let p1 = row[0]; // a..h
         let p2 = row[1]; // i..p
@@ -70,7 +70,7 @@ impl Gpu {
     }
 
     /// LCDC.7
-    fn lcd_enable(&self) -> bool {
+    fn lcd_enabled(&self) -> bool {
         self.lcdc & (1 << 7) > 0
     }
 
@@ -84,7 +84,7 @@ impl Gpu {
     }
 
     /// LCDC.5
-    fn win_enable(&self) -> bool {
+    fn win_enabled(&self) -> bool {
         self.lcdc & (1 << 5) > 0
     }
 
@@ -114,12 +114,12 @@ impl Gpu {
     }
 
     /// LCDC.1
-    fn obj_enable(&self) -> bool {
+    fn obj_enabled(&self) -> bool {
         self.lcdc & (1 << 1) > 0
     }
 
     /// LCDC.0
-    fn bg_win_enable(&self) -> bool {
+    fn bg_win_enabled(&self) -> bool {
         self.lcdc & 1 > 0
     }
 
@@ -138,7 +138,7 @@ impl Gpu {
             || (self.stat & (1 << 3) > 0 && self.ppu_mode() == 0) // Mode 0 int
     }
 
-    fn object(&self, id: u8) -> Tile {
+    fn object_tile(&self, id: u8) -> Tile {
         let start_addr = 0x8000 + (16 * id as u16);
         let mut tile = [0; 16];
         for i in 0..tile.len() {
@@ -147,7 +147,7 @@ impl Gpu {
         tile
     }
 
-    fn bg_win(&self, id: u8) -> Tile {
+    fn bg_win_tile(&self, id: u8) -> Tile {
         let mut tile = [0; 16];
         let start_addr = if self.bg_win_addr_mode() {
             0x8000 + (16 * id as u16)
@@ -162,6 +162,8 @@ impl Gpu {
         }
         tile
     }
+
+    pub fn render(&self) {}
 }
 
 #[cfg(test)]
@@ -176,7 +178,7 @@ mod tests {
         ];
 
         assert_eq!(
-            rows(t),
+            tile_rows(t),
             [
                 [60, 126],
                 [66, 66],
@@ -189,7 +191,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            pixel_color_map(t),
+            tile_color_map(t),
             [
                 [0, 2, 3, 3, 3, 3, 2, 0],
                 [0, 3, 0, 0, 0, 0, 3, 0],
