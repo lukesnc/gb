@@ -1,16 +1,16 @@
-enum KeyEvent {
+pub enum GbKeyEvent {
     Button(Button),
     Dpad(DpadDirection),
 }
 
-enum Button {
+pub enum Button {
     A,
     B,
     Start,
     Select,
 }
 
-enum DpadDirection {
+pub enum DpadDirection {
     Right,
     Left,
     Up,
@@ -32,17 +32,17 @@ impl Btns {
         }
     }
 
-    pub fn press(&mut self, key: KeyEvent) {
+    pub fn press(&mut self, key: GbKeyEvent) {
         match key {
-            KeyEvent::Button(btn) => self.btn_nib &= !(1 << btn as u8),
-            KeyEvent::Dpad(direction) => self.dpad_nib &= !(1 << direction as u8),
+            GbKeyEvent::Button(btn) => self.btn_nib &= !(1 << btn as u8),
+            GbKeyEvent::Dpad(direction) => self.dpad_nib &= !(1 << direction as u8),
         };
     }
 
-    pub fn release(&mut self, key: KeyEvent) {
+    pub fn release(&mut self, key: GbKeyEvent) {
         match key {
-            KeyEvent::Button(btn) => self.btn_nib |= 1 << btn as u8,
-            KeyEvent::Dpad(direction) => self.dpad_nib |= 1 << direction as u8,
+            GbKeyEvent::Button(btn) => self.btn_nib |= 1 << btn as u8,
+            GbKeyEvent::Dpad(direction) => self.dpad_nib |= 1 << direction as u8,
         };
     }
 
@@ -80,12 +80,12 @@ mod tests {
 
         // A + read Btns
         btns.pick_row(!0x20);
-        btns.press(KeyEvent::Button(A));
+        btns.press(GbKeyEvent::Button(A));
         assert_eq!(btns.data(), 0b11011110);
 
         // Up + read DPad
         btns.pick_row(!0x10);
-        btns.press(KeyEvent::Dpad(Up));
+        btns.press(GbKeyEvent::Dpad(Up));
         assert_eq!(btns.data(), 0b11101011);
     }
 }
