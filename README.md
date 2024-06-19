@@ -1,6 +1,49 @@
 # Game Boy Emulator
 
-This is an emulator of the original Game Boy (model DMG) I made in Rust.
+This is an emulator of the original Game Boy (model DMG) I'm making in Rust.
+
+## Progress
+
+- CPU: Finished (halt bug not implemented perfectly).
+- Timer: Finished.
+- Button input: Finished.
+- Memory management: Working so far.
+- Graphics: Work in progress.
+- Sound: Not yet started.
+
+## Requirements
+
+For graphics emulation, SDL2 is required.
+
+For Arch:
+
+```bash
+sudo pacman -S sdl2
+```
+
+or for Debian-based
+
+```bash
+sudo apt install libsdl2-dev
+```
+
+## Usage
+
+Run the desired rom file with:
+
+```bash
+cargo run -- [ROM]
+```
+
+## Controls
+
+The controls I picked are the same as [mGBA](https://github.com/mgba-emu/mgba/blob/master/README.md#controls).
+
+- **A**: X
+- **B**: Z
+- **Start**: Enter
+- **Select**: Backspace
+- **D-Pad**: Arrow Keys
 
 ## Resources
 
