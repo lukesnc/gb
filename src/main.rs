@@ -19,11 +19,6 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let file_path = &args[1];
 
-    // Init Gb
-    let mut mem = Mmu::new();
-    mem.load_rom(file_path);
-    let mut cpu = Cpu::from(mem);
-
     // Init SDL
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -37,6 +32,11 @@ fn main() {
     let mut canvas = window.into_canvas().build().unwrap();
     canvas.clear();
     canvas.present();
+
+    // Init Gb
+    let mut mem = Mmu::new();
+    mem.load_rom(file_path);
+    let mut cpu = Cpu::from(mem);
 
     // Game loop
     let mut event_pump = sdl_context.event_pump().unwrap();

@@ -63,6 +63,7 @@ impl Mmu {
         }
     }
 
+    /// Get the address of the interrupt to be serviced (if there is one)
     pub fn interrupt_addr(&mut self) -> Option<u8> {
         let requested = self.iflag & self.ie;
         let addr = match requested {

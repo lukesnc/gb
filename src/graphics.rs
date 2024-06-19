@@ -1,7 +1,9 @@
 pub const WIDTH: u32 = 166;
 pub const HEIGHT: u32 = 144;
 
+type Frame = [[u8; 166]; 144];
 type Tile = [u8; 16];
+type TileColorMap = [[u8; 8]; 8];
 
 fn tile_rows(tile: Tile) -> [[u8; 2]; 8] {
     let mut rows: [[u8; 2]; 8] = [[0; 2]; 8];
@@ -11,7 +13,7 @@ fn tile_rows(tile: Tile) -> [[u8; 2]; 8] {
     rows
 }
 
-fn tile_color_map(tile: Tile) -> [[u8; 8]; 8] {
+fn tile_color_map(tile: Tile) -> TileColorMap {
     let mut map: [[u8; 8]; 8] = [[0; 8]; 8];
     let rows = tile_rows(tile);
     for (line, row) in rows.iter().enumerate() {
@@ -127,6 +129,10 @@ impl Gpu {
         self.stat & 0b11
     }
 
+    fn set_ppu_mode(&mut self, n: u8) {
+        self.stat &= n & 0b11;
+    }
+
     pub fn should_vblank_interrupt(&self) -> bool {
         self.ppu_mode() == 1
     }
@@ -163,7 +169,17 @@ impl Gpu {
         tile
     }
 
-    pub fn render(&self) {}
+    pub fn draw_frame(&mut self) -> Frame {
+        let mut frame: Frame = [[0; 166]; 144];
+
+        self.ly = 0;
+        while self.ly <= 153 {
+            self.set_ppu_mode(2);
+
+            self.ly += 1;
+        }
+        frame
+    }
 }
 
 #[cfg(test)]
