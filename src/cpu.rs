@@ -33,14 +33,17 @@ impl Cpu {
             self.membus.write(0xff02, 0x0);
         }
 
-        // Handle interrupt
-        if self.halted || self.ime {
-            if let Some(addr) = self.membus.interrupt_addr() {
-                self.halted = false;
-                if !self.ime {
-                    return;
-                }
+        // Check should leave HALT
+        if self.halted && self.membus.interrupt_addr().is_some() {
+            self.halted = false;
+            if !self.ime {
+                //println!("halt bug");
+            }
+        }
 
+        // Handle interrupt
+        if self.ime {
+            if let Some(addr) = self.membus.interrupt_addr() {
                 self.ime = false;
                 self.ime_next = false;
 
@@ -2456,5 +2459,21 @@ impl Cpu {
         self.reg.set_flag(H, (a & 0xF) + (e & 0xF) > 0xF);
         self.reg.set_flag(C, (a & 0x00FF) + (e & 0x00FF) > 0x00FF);
         res
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn halt_bug() {
+        let mut mem = Mmu::new();
+        mem.load_rom(&"../testroms/blargg/cpu_instrs/individual/02-interrupts.gb".to_string());
+        let mut cpu = Cpu::from(mem);
+
+        loop {
+            cpu.cycle();
+        }
     }
 }
