@@ -3,6 +3,7 @@ mod cpu;
 mod graphics;
 mod memory;
 mod register;
+mod sound;
 
 use std::env;
 use std::time::Duration;

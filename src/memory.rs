@@ -2,6 +2,7 @@ use std::fs;
 
 use crate::buttons::Btns;
 use crate::graphics::Gpu;
+use crate::sound::Apu;
 
 struct Timer {
     div: u8,
@@ -34,6 +35,7 @@ pub struct Mmu {
     timer: Timer,
     pub btns: Btns,
     pub gpu: Gpu,
+    pub apu: Apu,
 }
 
 impl Mmu {
@@ -52,6 +54,7 @@ impl Mmu {
             },
             btns: Btns::new(),
             gpu: Gpu::new(),
+            apu: Apu::new(),
         }
     }
 
@@ -87,6 +90,7 @@ impl Mmu {
             0xFF06 => self.timer.tma,
             0xFF07 => self.timer.tac,
             0xFF0F => self.iflag,
+            0xFF26 => self.apu.master_control,
             0xFF40 => self.gpu.lcdc,
             0xFF41 => self.gpu.stat,
             0xFF42 => self.gpu.scy,
@@ -112,6 +116,7 @@ impl Mmu {
             0xFF05 => self.timer.tima = val,
             0xFF06 => self.timer.tma = val,
             0xFF07 => self.timer.tac = val,
+            0xFF26 => self.apu.master_control = val & (0 << 3), // Lower nib is read only
             0xFF0F => self.iflag = val,
             0xFF40 => self.gpu.lcdc = val,
             0xFF41 => self.gpu.stat = val,
