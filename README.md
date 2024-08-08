@@ -13,7 +13,7 @@ This is an emulator of the original Game Boy (model DMG) I'm making in Rust.
 
 ## Requirements
 
-For graphics emulation, SDL2 is required.
+SDL2 is required for sound and graphics output.
 
 For Arch:
 
@@ -21,7 +21,7 @@ For Arch:
 sudo pacman -S sdl2
 ```
 
-or for Debian-based
+or for Debian-based:
 
 ```bash
 sudo apt install libsdl2-dev
