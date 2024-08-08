@@ -90,6 +90,8 @@ impl Mmu {
             0xFF06 => self.timer.tma,
             0xFF07 => self.timer.tac,
             0xFF0F => self.iflag,
+            0xFF24 => self.apu.master_volume_vin_panning,
+            0xFF25 => self.apu.panning,
             0xFF26 => self.apu.master_control,
             0xFF40 => self.gpu.lcdc,
             0xFF41 => self.gpu.stat,
@@ -116,6 +118,8 @@ impl Mmu {
             0xFF05 => self.timer.tima = val,
             0xFF06 => self.timer.tma = val,
             0xFF07 => self.timer.tac = val,
+            0xFF24 => self.apu.master_volume_vin_panning = val,
+            0xFF25 => self.apu.panning = val,
             0xFF26 => self.apu.master_control = val & (0 << 3), // Lower nib is read only
             0xFF0F => self.iflag = val,
             0xFF40 => self.gpu.lcdc = val,
